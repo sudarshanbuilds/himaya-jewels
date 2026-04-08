@@ -1,0 +1,128 @@
+// Mock product data — replace with Supabase fetch after setup
+export const CATEGORIES = ['All', 'Bangles', 'Earrings', 'Combos']
+
+export const PRODUCTS = [
+  {
+    id: '1',
+    name: 'Golden Bangle Set',
+    price: 349,
+    description: 'A stunning set of 6 gold-plated bangles with intricate floral engravings. Perfect for festive occasions and daily wear. Made with premium alloy ensuring long-lasting shine.',
+    category: 'Bangles',
+    size: ['2.4', '2.6', '2.8'],
+    images: [
+      'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&q=80',
+      'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?w=600&q=80',
+    ],
+    stock: 25,
+    created_at: '2024-01-01',
+    is_new: true,
+  },
+  {
+    id: '2',
+    name: 'Pearl Drop Earrings',
+    price: 199,
+    description: 'Elegant pearl drop earrings with a delicate gold-tone finish. These timeless pieces add a touch of sophistication to any outfit, from casual to formal.',
+    category: 'Earrings',
+    size: ['Free Size'],
+    images: [
+      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&q=80',
+      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80',
+    ],
+    stock: 40,
+    created_at: '2024-01-05',
+    is_new: true,
+  },
+  {
+    id: '3',
+    name: 'Bridal Combo Set',
+    price: 799,
+    description: 'Complete bridal combo including a matching necklace, earrings, and bangle set. Crafted with premium kundan stones and gold plating, perfect for weddings and ceremonies.',
+    category: 'Combos',
+    size: ['2.4', '2.6', '2.8'],
+    images: [
+      'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600&q=80',
+      'https://images.unsplash.com/photo-1573408301185-9519ef7b1b4b?w=600&q=80',
+    ],
+    stock: 12,
+    created_at: '2024-01-08',
+    is_new: false,
+  },
+  {
+    id: '4',
+    name: 'Rose Gold Hoop Earrings',
+    price: 249,
+    description: 'Modern rose gold hoop earrings with a polished finish. Lightweight and comfortable for all-day wear. A versatile accessory that complements every style.',
+    category: 'Earrings',
+    size: ['Free Size'],
+    images: [
+      'https://images.unsplash.com/photo-1589128777073-263566ae5e4d?w=600&q=80',
+      'https://images.unsplash.com/photo-1561828995-aa79a2db86dd?w=600&q=80',
+    ],
+    stock: 35,
+    created_at: '2024-01-10',
+    is_new: false,
+  },
+  {
+    id: '5',
+    name: 'Kundan Bangle Set',
+    price: 549,
+    description: 'Traditional kundan bangles adorned with colorful semi-precious stones. Each bangle is handcrafted by skilled artisans, making it a unique piece of art.',
+    category: 'Bangles',
+    size: ['2.4', '2.6', '2.8', '3.0'],
+    images: [
+      'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?w=600&q=80',
+      'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&q=80',
+    ],
+    stock: 0,
+    created_at: '2024-01-12',
+    is_new: false,
+  },
+  {
+    id: '6',
+    name: 'Jhumka Earrings',
+    price: 279,
+    description: 'Classic Indian jhumka earrings in antique gold finish with tiny bells. The intricate beadwork and traditional design make these a must-have for ethnic wear.',
+    category: 'Earrings',
+    size: ['Free Size'],
+    images: [
+      'https://images.unsplash.com/photo-1573408301185-9519ef7b1b4b?w=600&q=80',
+      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&q=80',
+    ],
+    stock: 20,
+    created_at: '2024-01-15',
+    is_new: true,
+  },
+  {
+    id: '7',
+    name: 'Festival Combo Pack',
+    price: 649,
+    description: 'A festive combo set with matching earrings and 4 bangles in vibrant temple-style design. Perfect for Navratri, Diwali, and other festive celebrations.',
+    category: 'Combos',
+    size: ['2.4', '2.6', '2.8'],
+    images: [
+      'https://images.unsplash.com/photo-1573408301185-9519ef7b1b4b?w=600&q=80',
+      'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600&q=80',
+    ],
+    stock: 18,
+    created_at: '2024-01-18',
+    is_new: false,
+  },
+  {
+    id: '8',
+    name: 'Minimalist Gold Bangles',
+    price: 299,
+    description: 'Sleek, thin gold bangles for the modern woman. Wear them individually or stack them for a chic look. Made from tarnish-resistant alloy for long-lasting beauty.',
+    category: 'Bangles',
+    size: ['2.4', '2.6', '2.8'],
+    images: [
+      'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&q=80',
+      'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?w=600&q=80',
+    ],
+    stock: 30,
+    created_at: '2024-01-20',
+    is_new: false,
+  },
+]
+
+export const FEATURED_PRODUCTS = PRODUCTS.filter(p => p.is_new || p.stock > 20).slice(0, 4)
+export const TRENDING_PRODUCTS = [...PRODUCTS].sort((a,b) => b.price - a.price).slice(0, 4)
