@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Truck, Shield, RefreshCw, Star } from 'lucide-react'
+import { ArrowRight, Truck, Shield, RefreshCw } from 'lucide-react'
 import HeroBanner from '../components/HeroBanner'
 import CategoryShowcase from '../components/CategoryShowcase'
 import ProductCard from '../components/ProductCard'
@@ -10,7 +10,6 @@ const FEATURES = [
   { icon: <Truck size={22} className="text-yellow-600" />, title: 'Free Shipping', desc: 'On orders above ₹499' },
   { icon: <Shield size={22} className="text-yellow-600" />, title: 'Quality Assured', desc: 'Every piece checked' },
   { icon: <RefreshCw size={22} className="text-yellow-600" />, title: 'Easy Returns', desc: '7-day return policy' },
-  { icon: <Star size={22} className="text-yellow-600" />, title: 'Top Rated', desc: '4.9★ customer rating' },
 ]
 
 
@@ -24,7 +23,7 @@ export default function Home() {
       {/* Feature badges */}
       <section className="bg-amber-50 border-y border-amber-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {FEATURES.map((f, i) => (
               <div key={i} className="flex items-start gap-3 animate-fadeInUp" style={{ animationDelay: `${i * 0.1}s` }}>
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">

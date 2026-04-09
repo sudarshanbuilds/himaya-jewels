@@ -18,6 +18,7 @@ export default function AdminProducts() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+  const [modalError, setModalError] = useState('')
 
   const flash = (msg) => {
     setSuccessMsg(msg)
@@ -60,6 +61,7 @@ export default function AdminProducts() {
   const openAdd = () => {
     setForm({ ...emptyForm, category: categories[0]?.name || '' })
     setEditingId(null)
+    setModalError('')
     setShowModal(true)
   }
 
@@ -74,12 +76,15 @@ export default function AdminProducts() {
       stock: String(p.stock ?? 0),
     })
     setEditingId(p.id)
+    setModalError('')
     setShowModal(true)
   }
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.price) return
     setSaving(true)
+    setModalError('')
+    console.log('Submitting Product:', { editingId, form, isSupabaseConfigured })
 
     const payload = {
       name: form.name.trim(),
@@ -95,15 +100,17 @@ export default function AdminProducts() {
     try {
       if (isSupabaseConfigured) {
         if (editingId) {
+          console.log('Updating product id:', editingId)
           const { error } = await supabase.from('products').update(payload).eq('id', editingId)
           if (error) throw error
         } else {
-          const { error } = await supabase.from('products').insert(payload)
+          console.log('Inserting new product')
+          const { error } = await supabase.from('products').insert([payload])
           if (error) throw error
         }
         await fetchProducts() // Refresh from DB
       } else {
-        // Dev mode: update local state
+        // Dev mode: update local state only (resets on page refresh)
         if (editingId) {
           setProducts(ps => ps.map(p => p.id === editingId ? { ...p, ...payload } : p))
         } else {
@@ -113,7 +120,8 @@ export default function AdminProducts() {
       setShowModal(false)
       flash(editingId ? 'Product updated successfully!' : 'Product added successfully!')
     } catch (err) {
-      setError('Save failed: ' + (err.message || 'Unknown error'))
+      console.error('Save error:', err)
+      setModalError('Error saving product: ' + (err.message || 'Unknown error'))
     } finally {
       setSaving(false)
     }
@@ -245,6 +253,17 @@ export default function AdminProducts() {
               <button onClick={() => setShowModal(false)} className="p-2 rounded-xl hover:bg-gray-100 text-gray-500"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
+              {/* Modal Error */}
+              {modalError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                  ❌ {modalError}
+                </div>
+              )}
+              {!isSupabaseConfigured && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2.5 rounded-xl text-xs">
+                  ⚡ Dev mode: Products saved locally only (lost on refresh). Configure Supabase for permanent storage.
+                </div>
+              )}
               {[
                 { id: 'prod-name', label: 'Product Name *', key: 'name', type: 'text', placeholder: 'e.g. Golden Bangle Set' },
                 { id: 'prod-price', label: 'Price (₹) *', key: 'price', type: 'number', placeholder: '299' },

@@ -2,17 +2,24 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { FavoritesProvider } from './context/FavoritesContext'
 import { AuthProvider } from './context/AuthContext'
+import { UserAuthProvider } from './context/UserAuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import ScrollToTop from './components/ScrollToTop'
 import ProtectedRoute from './components/ProtectedRoute'
 
-// Pages
+// Customer Pages
 import Home from './pages/Home'
 import Shop from './pages/Shop'
 import ProductDetail from './pages/ProductDetail'
 import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
 import Favorites from './pages/Favorites'
+import Account from './pages/Account'
+
+// Auth Pages (customer)
+import Login from './pages/auth/Login'
+import Register from './pages/auth/Register'
 
 // Admin Pages
 import AdminLogin from './pages/admin/AdminLogin'
@@ -39,46 +46,55 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CartProvider>
-          <FavoritesProvider>
-            <Routes>
-              {/* Customer Routes */}
-              <Route path="/" element={<CustomerLayout><Home /></CustomerLayout>} />
-              <Route path="/shop" element={<CustomerLayout><Shop /></CustomerLayout>} />
-              <Route path="/product/:id" element={<CustomerLayout><ProductDetail /></CustomerLayout>} />
-              <Route path="/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
-              <Route path="/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />
-              <Route path="/favorites" element={<CustomerLayout><Favorites /></CustomerLayout>} />
+        <UserAuthProvider>
+          <CartProvider>
+            <FavoritesProvider>
+              {/* Scroll to top on every route change */}
+              <ScrollToTop />
+              <Routes>
+                {/* Customer Routes */}
+                <Route path="/" element={<CustomerLayout><Home /></CustomerLayout>} />
+                <Route path="/shop" element={<CustomerLayout><Shop /></CustomerLayout>} />
+                <Route path="/product/:id" element={<CustomerLayout><ProductDetail /></CustomerLayout>} />
+                <Route path="/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
+                <Route path="/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />
+                <Route path="/favorites" element={<CustomerLayout><Favorites /></CustomerLayout>} />
+                <Route path="/account" element={<CustomerLayout><Account /></CustomerLayout>} />
 
-              {/* Policy Pages */}
-              <Route path="/about" element={<CustomerLayout><AboutUs /></CustomerLayout>} />
-              <Route path="/contact" element={<CustomerLayout><Contact /></CustomerLayout>} />
-              <Route path="/shipping" element={<CustomerLayout><Shipping /></CustomerLayout>} />
-              <Route path="/returns" element={<CustomerLayout><Returns /></CustomerLayout>} />
-              <Route path="/privacy" element={<CustomerLayout><Privacy /></CustomerLayout>} />
-              <Route path="/terms" element={<CustomerLayout><Terms /></CustomerLayout>} />
+                {/* Auth Routes (no navbar/footer — standalone pages) */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-              {/* Admin Routes */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/admin/products" element={<ProtectedRoute><AdminProducts /></ProtectedRoute>} />
-              <Route path="/admin/categories" element={<ProtectedRoute><AdminCategories /></ProtectedRoute>} />
-              <Route path="/admin/orders" element={<ProtectedRoute><AdminOrders /></ProtectedRoute>} />
+                {/* Policy Pages */}
+                <Route path="/about" element={<CustomerLayout><AboutUs /></CustomerLayout>} />
+                <Route path="/contact" element={<CustomerLayout><Contact /></CustomerLayout>} />
+                <Route path="/shipping" element={<CustomerLayout><Shipping /></CustomerLayout>} />
+                <Route path="/returns" element={<CustomerLayout><Returns /></CustomerLayout>} />
+                <Route path="/privacy" element={<CustomerLayout><Privacy /></CustomerLayout>} />
+                <Route path="/terms" element={<CustomerLayout><Terms /></CustomerLayout>} />
 
-              {/* 404 fallback */}
-              <Route path="*" element={
-                <CustomerLayout>
-                  <div className="min-h-screen flex flex-col items-center justify-center text-center px-4">
-                    <div className="text-7xl mb-4">💎</div>
-                    <h1 className="font-display text-4xl font-bold text-gray-800 mb-3">404 – Page Not Found</h1>
-                    <p className="text-gray-500 mb-8">The page you're looking for doesn't exist.</p>
-                    <a href="/" className="btn-gold px-8 py-3">Go Home</a>
-                  </div>
-                </CustomerLayout>
-              } />
-            </Routes>
-          </FavoritesProvider>
-        </CartProvider>
+                {/* Admin Routes */}
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/admin/products" element={<ProtectedRoute><AdminProducts /></ProtectedRoute>} />
+                <Route path="/admin/categories" element={<ProtectedRoute><AdminCategories /></ProtectedRoute>} />
+                <Route path="/admin/orders" element={<ProtectedRoute><AdminOrders /></ProtectedRoute>} />
+
+                {/* 404 fallback */}
+                <Route path="*" element={
+                  <CustomerLayout>
+                    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4">
+                      <div className="text-7xl mb-4">💎</div>
+                      <h1 className="font-display text-4xl font-bold text-gray-800 mb-3">404 – Page Not Found</h1>
+                      <p className="text-gray-500 mb-8">The page you're looking for doesn't exist.</p>
+                      <a href="/" className="btn-gold px-8 py-3">Go Home</a>
+                    </div>
+                  </CustomerLayout>
+                } />
+              </Routes>
+            </FavoritesProvider>
+          </CartProvider>
+        </UserAuthProvider>
       </AuthProvider>
     </BrowserRouter>
   )

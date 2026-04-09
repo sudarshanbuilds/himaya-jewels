@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Heart, Search, Menu, X, Gem } from 'lucide-react'
+import { ShoppingCart, Heart, Search, Menu, X, Gem, UserCircle } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useFavorites } from '../context/FavoritesContext'
+import { useUserAuth } from '../context/UserAuthContext'
 
 export default function Navbar() {
   const { totalItems } = useCart()
   const { favorites } = useFavorites()
+  const { isLoggedIn, displayName } = useUserAuth()
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -91,6 +93,16 @@ export default function Navbar() {
                 )}
               </Link>
 
+              {/* Account/Login */}
+              <Link
+                to={isLoggedIn ? '/account' : '/login'}
+                className="relative p-2 rounded-full hover:bg-amber-50 transition-colors text-gray-600 hover:text-yellow-600"
+                aria-label={isLoggedIn ? 'My Account' : 'Login'}
+                title={isLoggedIn ? displayName : 'Sign In'}
+              >
+                <UserCircle size={20} />
+              </Link>
+
               {/* Cart */}
               <Link
                 to="/cart"
@@ -150,6 +162,14 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
+              <hr className="divider-gold my-2" />
+              <Link
+                to={isLoggedIn ? '/account' : '/login'}
+                onClick={() => setMobileOpen(false)}
+                className="block py-2.5 px-3 rounded-lg text-gray-700 hover:bg-amber-50 hover:text-yellow-700 font-medium transition-colors"
+              >
+                {isLoggedIn ? `My Account (${displayName})` : 'Login / Register'}
+              </Link>
               <hr className="divider-gold my-2" />
               <Link
                 to="/about" onClick={() => setMobileOpen(false)}
