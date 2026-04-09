@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Truck, Shield, RefreshCw } from 'lucide-react'
+import { ArrowRight, Truck, Shield, RefreshCw, Star } from 'lucide-react'
 import HeroBanner from '../components/HeroBanner'
 import CategoryShowcase from '../components/CategoryShowcase'
 import ProductCard from '../components/ProductCard'
