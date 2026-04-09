@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Truck, Shield, RefreshCw, Star } from 'lucide-react'
+import { ArrowRight, Truck, Shield, RefreshCw } from 'lucide-react'
 import HeroBanner from '../components/HeroBanner'
 import CategoryShowcase from '../components/CategoryShowcase'
 import ProductCard from '../components/ProductCard'
@@ -13,11 +13,6 @@ const FEATURES = [
   { icon: <Star size={22} className="text-yellow-600" />, title: 'Top Rated', desc: '4.9★ customer rating' },
 ]
 
-const TESTIMONIALS = [
-  { name: 'Priya S.', text: 'Absolutely love my bangle set! The quality is amazing for the price. Will definitely order again.', rating: 5 },
-  { name: 'Nisha K.', text: 'The earrings are even more beautiful in person. Fast delivery and gorgeous packaging!', rating: 5 },
-  { name: 'Meera R.', text: 'Ordered the bridal combo for my sister\'s wedding. Everyone complimented it!', rating: 5 },
-]
 
 export default function Home() {
   const { categories } = useCategories()
@@ -83,7 +78,7 @@ export default function Home() {
           <div className="relative z-10">
             <span className="text-yellow-300 text-sm font-semibold uppercase tracking-widest">Limited Offer</span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mt-2 mb-3">
-              Bridal Collection 2024
+              Bridal Collection 2026
             </h2>
             <p className="text-amber-200 max-w-md mx-auto mb-6">
               Complete bridal sets starting at just ₹799. Make your special day unforgettable with Himaya Jewels.
@@ -115,52 +110,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="bg-gradient-to-br from-amber-50 to-rose-50 py-14 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <p className="text-yellow-600 text-sm font-semibold uppercase tracking-widest mb-2">Reviews</p>
-            <h2 className="font-display text-3xl font-bold text-gray-800">What Our Customers Say</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((t, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl p-5 shadow-sm border border-amber-100 animate-fadeInUp"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              >
-                <div className="flex mb-3">
-                  {[...Array(t.rating)].map((_, j) => (
-                    <Star key={j} size={14} className="text-yellow-400 fill-yellow-400" />
-                  ))}
-                </div>
-                <p className="text-gray-600 text-sm leading-relaxed italic mb-3">"{t.text}"</p>
-                <p className="text-gray-800 font-semibold text-sm">– {t.name}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Newsletter */}
-      <section className="py-14 px-4 sm:px-6 max-w-2xl mx-auto text-center">
-        <p className="text-yellow-600 text-sm font-semibold uppercase tracking-widest mb-2">Stay Updated</p>
-        <h2 className="font-display text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
-          Get New Arrivals First
-        </h2>
-        <p className="text-gray-500 mb-6 text-sm">Subscribe and be the first to know about new jewelry drops and exclusive offers.</p>
-        <form className="flex gap-2 max-w-md mx-auto" onSubmit={e => e.preventDefault()}>
-          <input
-            type="email"
-            placeholder="Your email address"
-            className="input-gold flex-1"
-            id="newsletter-email"
-          />
-          <button type="submit" className="btn-gold text-sm px-5 py-2.5 whitespace-nowrap">
-            Subscribe
-          </button>
-        </form>
-      </section>
     </main>
   )
 }

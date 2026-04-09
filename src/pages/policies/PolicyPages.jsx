@@ -56,8 +56,8 @@ export function Contact() {
         <P>Have questions, feedback, or need assistance? Our team is here to help you!</P>
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 my-6 space-y-4">
           {[
-            { label: 'WhatsApp / Phone', value: '+91 98765 43210', href: 'tel:+919876543210' },
-            { label: 'Email', value: 'hello@himayajewels.com', href: 'mailto:hello@himayajewels.com' },
+            { label: 'WhatsApp / Phone', value: '+91 95582 85403', href: 'tel:+919558285403' },
+            { label: 'Email', value: 'himadreevarma4@gmail.com', href: 'mailto:himadreevarma4@gmail.com' },
             { label: 'Business Hours', value: 'Monday – Saturday, 9 AM – 7 PM IST' },
           ].map((item, i) => (
             <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-1">
@@ -75,7 +75,7 @@ export function Contact() {
         <H>WhatsApp Support</H>
         <P>For fastest support, message us on WhatsApp. Our team typically responds within 1 hour during business hours. You can also reach us 24/7 for order-related queries through WhatsApp.</P>
         <a
-          href="https://wa.me/919876543210?text=Hi! I need help with Himaya Jewels."
+          href="https://wa.me/919558285403?text=Hi! I need help with Himaya Jewels."
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-2 bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-green-500 transition-colors mt-2"
@@ -120,7 +120,7 @@ export function Shipping() {
       </S>
       <S>
         <H>Damaged or Lost Packages</H>
-        <P>If your package arrives damaged or is lost in transit, please contact us immediately at hello@himayajewels.com or WhatsApp. We will arrange a replacement or full refund at no extra cost.</P>
+        <P>If your package arrives damaged or is lost in transit, please contact us immediately at himadreevarma4@gmail.com or WhatsApp. We will arrange a replacement or full refund at no extra cost.</P>
       </S>
     </PolicyLayout>
   )
@@ -159,7 +159,7 @@ export function Returns() {
       </S>
       <S>
         <H>How to Initiate a Return</H>
-        <P>WhatsApp us at +91 98765 43210 with your Order ID and reason for return. We will guide you through the process.</P>
+        <P>WhatsApp us at +91 95582 85403 with your Order ID and reason for return. We will guide you through the process.</P>
       </S>
     </PolicyLayout>
   )
@@ -202,7 +202,7 @@ export function Privacy() {
       </S>
       <S>
         <H>Contact Us</H>
-        <P>For privacy-related queries, contact us at hello@himayajewels.com.</P>
+        <P>For privacy-related queries, contact us at himadreevarma4@gmail.com.</P>
       </S>
     </PolicyLayout>
   )

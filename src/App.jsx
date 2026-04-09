@@ -4,7 +4,6 @@ import { FavoritesProvider } from './context/FavoritesContext'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
-import WhatsAppButton from './components/WhatsAppButton'
 import ProtectedRoute from './components/ProtectedRoute'
 
 // Pages
@@ -32,7 +31,6 @@ function CustomerLayout({ children }) {
       <Navbar />
       {children}
       <Footer />
-      <WhatsAppButton />
     </>
   )
 }

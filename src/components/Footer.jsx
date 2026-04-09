@@ -7,14 +7,8 @@ const InstagramIcon = () => (
   </svg>
 )
 
-const FacebookIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-  </svg>
-)
-
 export default function Footer() {
-  const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '919876543210'
+  const whatsappNumber = '919558285403'
 
   return (
     <footer className="bg-gray-900 text-gray-300">
@@ -37,7 +31,7 @@ export default function Footer() {
             </p>
             <div className="flex items-center gap-3">
               <a
-                href={`https://instagram.com`}
+                href="https://www.instagram.com/himayajewells?igsh=ZXFicWR1MzFvZXBq"
                 target="_blank"
                 rel="noreferrer"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-yellow-500 flex items-center justify-center transition-colors group"
@@ -46,16 +40,7 @@ export default function Footer() {
                 <span className="text-gray-400 group-hover:text-white"><InstagramIcon /></span>
               </a>
               <a
-                href={`https://facebook.com`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-yellow-500 flex items-center justify-center transition-colors group"
-                aria-label="Facebook"
-              >
-                <span className="text-gray-400 group-hover:text-white"><FacebookIcon /></span>
-              </a>
-              <a
-                href={`https://wa.me/${whatsappNumber}`}
+                href={`https://wa.me/919558285403`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-green-500 flex items-center justify-center transition-colors group"
@@ -130,14 +115,14 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2.5">
                 <Phone size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                <a href={`tel:+${whatsappNumber}`} className="text-sm text-gray-400 hover:text-yellow-400 transition-colors">
-                  +91 98765 43210
+                <a href="tel:+919558285403" className="text-sm text-gray-400 hover:text-yellow-400 transition-colors">
+                  +91 95582 85403
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
                 <Mail size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                <a href="mailto:hello@himayajewels.com" className="text-sm text-gray-400 hover:text-yellow-400 transition-colors">
-                  hello@himayajewels.com
+                <a href="mailto:himadreevarma4@gmail.com" className="text-sm text-gray-400 hover:text-yellow-400 transition-colors">
+                  himadreevarma4@gmail.com
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
@@ -146,7 +131,7 @@ export default function Footer() {
               </li>
             </ul>
             <a
-              href={`https://wa.me/${whatsappNumber}?text=Hi! I'm interested in your jewelry.`}
+              href="https://wa.me/919558285403?text=Hi! I'm interested in your jewelry."
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 mt-4 bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-full transition-all hover:shadow-lg"

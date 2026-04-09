@@ -1,20 +1,61 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Save } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Pencil, Trash2, X, Save, RefreshCw } from 'lucide-react'
 import AdminSidebar from '../../components/AdminSidebar'
-import { PRODUCTS as initialProducts } from '../../data/products'
+import { PRODUCTS as LOCAL_PRODUCTS } from '../../data/products'
 import { useCategories } from '../../hooks/useCategories'
+import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 
 const emptyForm = { name: '', price: '', description: '', category: '', size: '', images: '', stock: '' }
 
 export default function AdminProducts() {
   const { categories } = useCategories()
-  const [products, setProducts] = useState(initialProducts)
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+
+  const flash = (msg) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(''), 3000)
+  }
+
+  // ── Fetch products ──
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    if (!isSupabaseConfigured) {
+      setProducts(LOCAL_PRODUCTS)
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (fetchError) {
+        setError('Failed to load products: ' + fetchError.message)
+        setProducts(LOCAL_PRODUCTS)
+      } else {
+        setProducts(data && data.length > 0 ? data : LOCAL_PRODUCTS)
+      }
+    } catch (err) {
+      setError('Network error. Showing local data.')
+      setProducts(LOCAL_PRODUCTS)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchProducts() }, [fetchProducts])
 
   const openAdd = () => {
     setForm({ ...emptyForm, category: categories[0]?.name || '' })
@@ -24,64 +65,107 @@ export default function AdminProducts() {
 
   const openEdit = (p) => {
     setForm({
-      name: p.name, price: String(p.price), description: p.description || '',
-      category: p.category, size: p.size?.join(', ') || '', images: p.images?.join('\n') || '',
-      stock: String(p.stock),
+      name: p.name,
+      price: String(p.price),
+      description: p.description || '',
+      category: p.category || categories[0]?.name || '',
+      size: Array.isArray(p.size) ? p.size.join(', ') : (p.size || ''),
+      images: Array.isArray(p.images) ? p.images.join('\n') : (p.images || ''),
+      stock: String(p.stock ?? 0),
     })
     setEditingId(p.id)
     setShowModal(true)
   }
 
   const handleSave = async () => {
-    if (!form.name || !form.price) return
+    if (!form.name.trim() || !form.price) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 400))
-    const updated = {
-      id: editingId || String(Date.now()),
-      name: form.name,
+
+    const payload = {
+      name: form.name.trim(),
       price: Number(form.price),
-      description: form.description,
+      description: form.description.trim(),
       category: form.category || categories[0]?.name || 'Other',
       size: form.size.split(',').map(s => s.trim()).filter(Boolean),
       images: form.images.split('\n').map(s => s.trim()).filter(Boolean),
       stock: Number(form.stock) || 0,
-      created_at: new Date().toISOString(),
       is_new: !editingId,
     }
-    if (editingId) {
-      setProducts(ps => ps.map(p => p.id === editingId ? updated : p))
-    } else {
-      setProducts(ps => [updated, ...ps])
+
+    try {
+      if (isSupabaseConfigured) {
+        if (editingId) {
+          const { error } = await supabase.from('products').update(payload).eq('id', editingId)
+          if (error) throw error
+        } else {
+          const { error } = await supabase.from('products').insert(payload)
+          if (error) throw error
+        }
+        await fetchProducts() // Refresh from DB
+      } else {
+        // Dev mode: update local state
+        if (editingId) {
+          setProducts(ps => ps.map(p => p.id === editingId ? { ...p, ...payload } : p))
+        } else {
+          setProducts(ps => [{ id: String(Date.now()), ...payload, created_at: new Date().toISOString() }, ...ps])
+        }
+      }
+      setShowModal(false)
+      flash(editingId ? 'Product updated successfully!' : 'Product added successfully!')
+    } catch (err) {
+      setError('Save failed: ' + (err.message || 'Unknown error'))
+    } finally {
+      setSaving(false)
     }
-    setShowModal(false)
-    setSaving(false)
-    setSuccessMsg(editingId ? 'Product updated!' : 'Product added!')
-    setTimeout(() => setSuccessMsg(''), 2500)
   }
 
-  const handleDelete = (id) => {
-    setProducts(ps => ps.filter(p => p.id !== id))
-    setDeleteConfirm(null)
-    setSuccessMsg('Product deleted.')
-    setTimeout(() => setSuccessMsg(''), 2500)
+  const handleDelete = async (id) => {
+    try {
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from('products').delete().eq('id', id)
+        if (error) throw error
+        await fetchProducts()
+      } else {
+        setProducts(ps => ps.filter(p => p.id !== id))
+      }
+      setDeleteConfirm(null)
+      flash('Product deleted.')
+    } catch (err) {
+      setError('Delete failed: ' + (err.message || 'Unknown error'))
+    }
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <AdminSidebar />
-
       <main className="ml-56 flex-1 p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-3xl font-bold text-gray-800">Products</h1>
-            <p className="text-gray-400 text-sm mt-1">{products.length} products in catalogue</p>
+            <p className="text-gray-400 text-sm mt-1">
+              {loading ? 'Loading...' : `${products.length} products in catalogue`}
+              {!isSupabaseConfigured && <span className="ml-2 text-xs text-amber-500">(Dev mode)</span>}
+            </p>
           </div>
-          <button onClick={openAdd} id="add-product-btn" className="btn-gold flex items-center gap-2 text-sm px-5 py-2.5">
-            <Plus size={16} /> Add Product
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchProducts}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-600 hover:border-yellow-400 hover:text-yellow-600 transition-all"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button onClick={openAdd} id="add-product-btn" className="btn-gold flex items-center gap-2 text-sm px-5 py-2.5">
+              <Plus size={16} /> Add Product
+            </button>
+          </div>
         </div>
 
+        {/* Messages */}
+        {error && (
+          <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{error}</div>
+        )}
         {successMsg && (
           <div className="mb-5 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm animate-fadeInUp">
             ✓ {successMsg}
@@ -90,53 +174,64 @@ export default function AdminProducts() {
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Product</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stock</th>
-                  <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {products.map(p => (
-                  <tr key={p.id} className="hover:bg-amber-50/30 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <img src={p.images?.[0]} alt={p.name} className="w-12 h-12 rounded-xl object-cover bg-gray-100 flex-shrink-0" onError={e => e.target.src = 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=100&q=80'} />
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800 line-clamp-1">{p.name}</p>
-                          <p className="text-xs text-gray-400 line-clamp-1">{p.description?.slice(0, 50)}...</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">{p.category || 'Other'}</span>
-                    </td>
-                    <td className="px-5 py-3.5 text-sm font-bold text-yellow-600">₹{p.price}</td>
-                    <td className="px-5 py-3.5">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock < 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-600'}`}>
-                        {p.stock === 0 ? 'Out of Stock' : `${p.stock} units`}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openEdit(p)} id={`edit-product-${p.id}`} className="p-2 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors" aria-label="Edit">
-                          <Pencil size={15} />
-                        </button>
-                        <button onClick={() => setDeleteConfirm(p.id)} id={`delete-product-${p.id}`} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors" aria-label="Delete">
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 border-2 border-yellow-200 border-t-yellow-500 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Product</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stock</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {products.map(p => (
+                    <tr key={p.id} className="hover:bg-amber-50/30 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={Array.isArray(p.images) ? p.images[0] : p.images}
+                            alt={p.name}
+                            className="w-12 h-12 rounded-xl object-cover bg-gray-100 flex-shrink-0"
+                            onError={e => e.target.src = 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=100&q=80'}
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800 line-clamp-1">{p.name}</p>
+                            <p className="text-xs text-gray-400 line-clamp-1">{p.description?.slice(0, 50)}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">{p.category || 'Other'}</span>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-bold text-yellow-600">₹{p.price}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock < 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-600'}`}>
+                          {p.stock === 0 ? 'Out of Stock' : `${p.stock} units`}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => openEdit(p)} id={`edit-product-${p.id}`} className="p-2 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors" aria-label="Edit">
+                            <Pencil size={15} />
+                          </button>
+                          <button onClick={() => setDeleteConfirm(p.id)} id={`delete-product-${p.id}`} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors" aria-label="Delete">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
 
@@ -164,25 +259,14 @@ export default function AdminProducts() {
 
               {/* Dynamic Category Dropdown */}
               <div>
-                <label htmlFor="prod-category" className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
-                  <span className="ml-2 text-xs text-gray-400 font-normal">({categories.length} available)</span>
-                </label>
-                <select
-                  id="prod-category"
-                  value={form.category}
-                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                  className="input-gold"
-                >
+                <label htmlFor="prod-category" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select id="prod-category" value={form.category}
+                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="input-gold">
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.name}>{cat.name}</option>
                   ))}
                   {categories.length === 0 && <option value="Other">Other</option>}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">
-                  Manage categories in{' '}
-                  <a href="/admin/categories" className="text-yellow-600 hover:underline">Admin → Categories</a>
-                </p>
               </div>
 
               <div>
@@ -202,7 +286,8 @@ export default function AdminProducts() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setShowModal(false)} className="btn-outline-gold flex-1 py-2.5 text-sm">Cancel</button>
-                <button onClick={handleSave} disabled={saving} id="save-product-btn" className="btn-gold flex-1 flex items-center justify-center gap-2 py-2.5 text-sm">
+                <button onClick={handleSave} disabled={saving || !form.name.trim() || !form.price} id="save-product-btn"
+                  className="btn-gold flex-1 flex items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-50">
                   {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={15} />}
                   {saving ? 'Saving...' : 'Save Product'}
                 </button>
@@ -224,7 +309,8 @@ export default function AdminProducts() {
             <p className="text-gray-500 text-sm mb-6">This action cannot be undone.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="btn-outline-gold flex-1 py-2.5 text-sm">Cancel</button>
-              <button onClick={() => handleDelete(deleteConfirm)} id="confirm-delete-btn" className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-full text-sm transition-colors">Delete</button>
+              <button onClick={() => handleDelete(deleteConfirm)} id="confirm-delete-btn"
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-full text-sm transition-colors">Delete</button>
             </div>
           </div>
         </div>

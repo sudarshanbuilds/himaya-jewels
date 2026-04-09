@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CheckCircle, ArrowLeft, Truck, User, Phone, MapPin, ShoppingBag } from 'lucide-react'
+import { CheckCircle, ArrowLeft, Truck, User, Phone, MapPin, ShoppingBag, AlertCircle } from 'lucide-react'
 import { useCart } from '../context/CartContext'
-import { supabase } from '../lib/supabase'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 export default function Checkout() {
   const { items, totalPrice, clearCart } = useCart()
@@ -12,6 +12,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [orderId, setOrderId] = useState(null)
+  const [submitError, setSubmitError] = useState('')
 
   const shipping = totalPrice >= 499 ? 0 : 49
   const grandTotal = totalPrice + shipping
@@ -41,40 +42,55 @@ export default function Checkout() {
     const errs = validate()
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setErrors({})
+    setSubmitError('')
     setLoading(true)
 
+    // Build order reference
+    const orderRef = 'HJ' + Date.now().toString().slice(-6)
+
+    // Build JSONB products array (full cart snapshot)
+    const productsSnapshot = items.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      selectedSize: item.selectedSize || '',
+      image: item.images?.[0] || '',
+      subtotal: item.price * item.quantity,
+    }))
+
     try {
-      // Try to save to Supabase (will fail if not configured — graceful fallback)
-      let orderRef = 'HJ' + Date.now().toString().slice(-6)
+      if (isSupabaseConfigured) {
+        // Insert single order with all products as JSONB
+        const { error } = await supabase.from('orders').insert({
+          customer_name: form.name.trim(),
+          phone: form.phone.trim(),
+          address: form.address.trim(),
+          products: productsSnapshot,
+          total_price: grandTotal,
+          order_status: 'pending',
+        })
 
-      try {
-        // Create one order per cart item (Supabase schema)
-        for (const item of items) {
-          await supabase.from('orders').insert({
-            customer_name: form.name.trim(),
-            phone: form.phone.trim(),
-            address: form.address.trim(),
-            product_id: item.id,
-            quantity: item.quantity,
-            total_price: item.price * item.quantity,
-            order_status: 'pending',
-          })
+        if (error) {
+          console.error('Order insert error:', error)
+          setSubmitError('Failed to place order. Please try again or contact us on WhatsApp.')
+          setLoading(false)
+          return
         }
-      } catch {
-        // Supabase not configured — continue with local order
       }
-
+      // Dev mode or Supabase not configured → just show success
       setOrderId(orderRef)
       clearCart()
       setSuccess(true)
     } catch (err) {
-      alert('Something went wrong. Please try again.')
+      console.error('Order error:', err)
+      setSubmitError('Something went wrong. Please try again or contact us on WhatsApp.')
     } finally {
       setLoading(false)
     }
   }
 
-  // Success screen
+  // ── Success Screen ──
   if (success) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-amber-50 to-rose-50 flex items-center justify-center px-4 py-20">
@@ -124,11 +140,17 @@ export default function Checkout() {
                 <h2 className="font-semibold text-gray-800">Delivery Details</h2>
               </div>
               <form onSubmit={handleSubmit} id="checkout-form" className="p-5 space-y-5">
+                {/* Submit Error */}
+                {submitError && (
+                  <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3.5">
+                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                    <p className="text-sm">{submitError}</p>
+                  </div>
+                )}
+
                 {/* Name */}
                 <div>
-                  <label htmlFor="checkout-name" className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Full Name *
-                  </label>
+                  <label htmlFor="checkout-name" className="block text-sm font-medium text-gray-700 mb-1.5">Full Name *</label>
                   <div className="relative">
                     <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
@@ -145,9 +167,7 @@ export default function Checkout() {
 
                 {/* Phone */}
                 <div>
-                  <label htmlFor="checkout-phone" className="block text-sm font-medium text-gray-700 mb-1.5">
-                    WhatsApp / Mobile Number *
-                  </label>
+                  <label htmlFor="checkout-phone" className="block text-sm font-medium text-gray-700 mb-1.5">WhatsApp / Mobile Number *</label>
                   <div className="relative">
                     <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
@@ -165,9 +185,7 @@ export default function Checkout() {
 
                 {/* Address */}
                 <div>
-                  <label htmlFor="checkout-address" className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Full Delivery Address *
-                  </label>
+                  <label htmlFor="checkout-address" className="block text-sm font-medium text-gray-700 mb-1.5">Full Delivery Address *</label>
                   <div className="relative">
                     <MapPin size={15} className="absolute left-3 top-3.5 text-gray-400" />
                     <textarea

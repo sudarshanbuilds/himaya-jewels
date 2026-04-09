@@ -34,8 +34,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_name   TEXT NOT NULL,
   phone           TEXT NOT NULL,
   address         TEXT NOT NULL,
-  product_id      UUID REFERENCES products(id) ON DELETE SET NULL,
-  quantity        INTEGER NOT NULL CHECK (quantity > 0),
+  products        JSONB NOT NULL DEFAULT '[]',  -- full cart snapshot: [{id,name,price,quantity,selectedSize,image,subtotal}]
   total_price     NUMERIC(10,2) NOT NULL,
   order_status    TEXT DEFAULT 'pending'
                   CHECK (order_status IN ('pending','confirmed','shipped','delivered','cancelled')),

@@ -1,15 +1,17 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, SlidersHorizontal, X, Grid3X3, LayoutList } from 'lucide-react'
 import ProductCard from '../components/ProductCard'
 import FilterPanel, { PRICE_RANGES, SORT_OPTIONS } from '../components/FilterPanel'
 import { SkeletonCard } from '../components/LoadingSpinner'
-import { PRODUCTS } from '../data/products'
+import { PRODUCTS as LOCAL_PRODUCTS } from '../data/products'
 import { useCategories } from '../hooks/useCategories'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 export default function Shop() {
   const { categories } = useCategories()
   const [searchParams, setSearchParams] = useSearchParams()
+  const [allProducts, setAllProducts] = useState(LOCAL_PRODUCTS)
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [view, setView] = useState('grid')
@@ -22,12 +24,32 @@ export default function Shop() {
     search: searchParams.get('search') || '',
   })
 
-  // Simulate loading
-  useEffect(() => {
+  // Fetch products from Supabase (with local fallback)
+  const fetchProducts = useCallback(async () => {
     setLoading(true)
-    const t = setTimeout(() => setLoading(false), 600)
-    return () => clearTimeout(t)
-  }, [filters])
+    if (!isSupabaseConfigured) {
+      setAllProducts(LOCAL_PRODUCTS)
+      setLoading(false)
+      return
+    }
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data && data.length > 0) {
+        setAllProducts(data)
+      } else {
+        setAllProducts(LOCAL_PRODUCTS)
+      }
+    } catch {
+      setAllProducts(LOCAL_PRODUCTS)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchProducts() }, [fetchProducts])
 
   // Sync URL params
   useEffect(() => {
@@ -40,17 +62,11 @@ export default function Shop() {
     }
   }, [searchParams])
 
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters)
-  }
-
-  const handleSearch = (e) => {
-    e.preventDefault()
-    setFilters(f => ({ ...f, search: searchInput }))
-  }
+  const handleFilterChange = (newFilters) => { setFilters(newFilters) }
+  const handleSearch = (e) => { e.preventDefault(); setFilters(f => ({ ...f, search: searchInput })) }
 
   const filtered = useMemo(() => {
-    let result = [...PRODUCTS]
+    let result = [...allProducts]
 
     // Search
     if (filters.search.trim()) {
