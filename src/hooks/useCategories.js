@@ -21,11 +21,28 @@ function toSlug(name) {
   return name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 }
 
-/** Load cached data from localStorage, returns null if nothing saved */
+/** Check if a string looks like a real UUID */
+function isRealUUID(str) {
+  return typeof str === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+}
+
+/**
+ * Load cached data from localStorage.
+ * Returns null if nothing saved OR if the cached IDs are fake (non-UUID),
+ * so we never use stale 'cat-1' / numeric IDs as category_id in Supabase.
+ */
 function loadCache() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    // If the first item doesn't have a real UUID id, the cache is stale — discard it
+    if (Array.isArray(parsed) && parsed.length > 0 && !isRealUUID(parsed[0]?.id)) {
+      localStorage.removeItem(STORAGE_KEY)  // clear stale cache
+      return null
+    }
+    return parsed
   } catch {}
   return null
 }

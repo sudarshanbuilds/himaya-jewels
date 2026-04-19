@@ -99,17 +99,23 @@ export default function AdminProducts() {
 
     // Resolve category name + UUID from form state
     const resolvedCat = categories.find(c => c.id === form.category_id) || {}
+
+    // Guard: only send category_id if it's a real UUID (not 'cat-1', '1', etc.)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const safeCategory_id = uuidPattern.test(form.category_id) ? form.category_id : null
+
     const payload = {
       name: form.name.trim(),
       price: Number(form.price),
       description: form.description.trim(),
       category: resolvedCat.name || form.category || 'Other',  // text fallback
-      category_id: form.category_id || null,                    // UUID — this was sending '1'
+      category_id: safeCategory_id,                            // null if not a real UUID
       size: form.size.split(',').map(s => s.trim()).filter(Boolean),
       images: form.images.split('\n').map(s => s.trim()).filter(Boolean),
       stock: Number(form.stock) || 0,
       is_new: !editingId,
     }
+
 
     try {
       if (isSupabaseConfigured) {
