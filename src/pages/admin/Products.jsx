@@ -5,7 +5,7 @@ import { PRODUCTS as LOCAL_PRODUCTS } from '../../data/products'
 import { useCategories } from '../../hooks/useCategories'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 
-const emptyForm = { name: '', price: '', description: '', category: '', size: '', images: '', stock: '' }
+const emptyForm = { name: '', price: '', description: '', category: '', category_id: '', size: '', images: '', stock: '' }
 
 export default function AdminProducts() {
   const { categories } = useCategories()
@@ -59,18 +59,29 @@ export default function AdminProducts() {
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
   const openAdd = () => {
-    setForm({ ...emptyForm, category: categories[0]?.name || '' })
+    const firstCat = categories[0] || {}
+    setForm({
+      ...emptyForm,
+      category: firstCat.name || '',
+      category_id: firstCat.id || '',
+    })
     setEditingId(null)
     setModalError('')
     setShowModal(true)
   }
 
   const openEdit = (p) => {
+    // Resolve category_id from the product, or look it up by name if missing
+    const matchedCat = categories.find(c => c.id === p.category_id)
+      || categories.find(c => c.name === p.category)
+      || categories[0]
+      || {}
     setForm({
       name: p.name,
       price: String(p.price),
       description: p.description || '',
-      category: p.category || categories[0]?.name || '',
+      category: matchedCat.name || p.category || '',
+      category_id: matchedCat.id || p.category_id || '',
       size: Array.isArray(p.size) ? p.size.join(', ') : (p.size || ''),
       images: Array.isArray(p.images) ? p.images.join('\n') : (p.images || ''),
       stock: String(p.stock ?? 0),
@@ -86,11 +97,14 @@ export default function AdminProducts() {
     setModalError('')
     console.log('Submitting Product:', { editingId, form, isSupabaseConfigured })
 
+    // Resolve category name + UUID from form state
+    const resolvedCat = categories.find(c => c.id === form.category_id) || {}
     const payload = {
       name: form.name.trim(),
       price: Number(form.price),
       description: form.description.trim(),
-      category: form.category || categories[0]?.name || 'Other',
+      category: resolvedCat.name || form.category || 'Other',  // text fallback
+      category_id: form.category_id || null,                    // UUID — this was sending '1'
       size: form.size.split(',').map(s => s.trim()).filter(Boolean),
       images: form.images.split('\n').map(s => s.trim()).filter(Boolean),
       stock: Number(form.stock) || 0,
@@ -279,12 +293,23 @@ export default function AdminProducts() {
               {/* Dynamic Category Dropdown */}
               <div>
                 <label htmlFor="prod-category" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select id="prod-category" value={form.category}
-                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="input-gold">
+                <select
+                  id="prod-category"
+                  value={form.category_id}
+                  onChange={e => {
+                    const selected = categories.find(c => c.id === e.target.value) || {}
+                    setForm(f => ({
+                      ...f,
+                      category_id: selected.id || '',
+                      category: selected.name || '',
+                    }))
+                  }}
+                  className="input-gold"
+                >
                   {categories.map(cat => (
-                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
-                  {categories.length === 0 && <option value="Other">Other</option>}
+                  {categories.length === 0 && <option value="">Other</option>}
                 </select>
               </div>
 
