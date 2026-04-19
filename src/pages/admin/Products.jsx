@@ -2,53 +2,86 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Pencil, Trash2, X, Save, RefreshCw } from 'lucide-react'
 import AdminSidebar from '../../components/AdminSidebar'
 import { PRODUCTS as LOCAL_PRODUCTS } from '../../data/products'
-import { useCategories } from '../../hooks/useCategories'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 
-const emptyForm = { name: '', price: '', description: '', category: '', category_id: '', size: '', images: '', stock: '' }
+// UUID regex — real Supabase UUIDs match this; fake ids like 'cat-1' or '1' do NOT
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const emptyForm = {
+  name: '', price: '', description: '',
+  category_id: '',  // UUID from Supabase categories table
+  category: '',     // human-readable name (text column fallback)
+  size: '', images: '', stock: '',
+}
 
 export default function AdminProducts() {
-  const { categories } = useCategories()
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [products, setProducts]   = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm]           = useState(emptyForm)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]       = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [modalError, setModalError] = useState('')
+
+  // ─────────────────────────────────────────
+  // Categories – fetched DIRECTLY from Supabase
+  // so we always get real UUIDs, never stale cache
+  // ─────────────────────────────────────────
+  const [dbCats, setDbCats] = useState([])
+  const [catsLoading, setCatsLoading] = useState(false)
+
+  const fetchCategories = useCallback(async () => {
+    if (!isSupabaseConfigured) return
+    setCatsLoading(true)
+    try {
+      const { data, error: catErr } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name')
+      if (!catErr && data && data.length > 0) {
+        console.log('Categories loaded from Supabase:', data)
+        setDbCats(data)
+      }
+    } catch (e) {
+      console.warn('Could not fetch categories:', e)
+    } finally {
+      setCatsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchCategories() }, [fetchCategories])
 
   const flash = (msg) => {
     setSuccessMsg(msg)
     setTimeout(() => setSuccessMsg(''), 3000)
   }
 
-  // ── Fetch products ──
+  // ─────────────────────────────────────────
+  // Fetch products
+  // ─────────────────────────────────────────
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     setError('')
-
     if (!isSupabaseConfigured) {
       setProducts(LOCAL_PRODUCTS)
       setLoading(false)
       return
     }
-
     try {
       const { data, error: fetchError } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false })
-
       if (fetchError) {
         setError('Failed to load products: ' + fetchError.message)
         setProducts(LOCAL_PRODUCTS)
       } else {
         setProducts(data && data.length > 0 ? data : LOCAL_PRODUCTS)
       }
-    } catch (err) {
+    } catch {
       setError('Network error. Showing local data.')
       setProducts(LOCAL_PRODUCTS)
     } finally {
@@ -58,12 +91,17 @@ export default function AdminProducts() {
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
+  // ─────────────────────────────────────────
+  // Open modal helpers
+  // ─────────────────────────────────────────
   const openAdd = () => {
-    const firstCat = categories[0] || {}
+    // Use FIRST real Supabase category (guaranteed UUID)
+    const first = dbCats[0] || {}
+    console.log('openAdd – first category:', first)
     setForm({
       ...emptyForm,
-      category: firstCat.name || '',
-      category_id: firstCat.id || '',
+      category_id: first.id  || '',   // real UUID
+      category:    first.name || '',
     })
     setEditingId(null)
     setModalError('')
@@ -71,66 +109,78 @@ export default function AdminProducts() {
   }
 
   const openEdit = (p) => {
-    // Resolve category_id from the product, or look it up by name if missing
-    const matchedCat = categories.find(c => c.id === p.category_id)
-      || categories.find(c => c.name === p.category)
-      || categories[0]
-      || {}
+    // Match product's category_id to a Supabase category, or fall back to name match
+    const matched =
+      dbCats.find(c => c.id   === p.category_id) ||
+      dbCats.find(c => c.name === p.category)    ||
+      dbCats[0] || {}
+    console.log('openEdit – matched category:', matched, '| product category_id:', p.category_id)
     setForm({
-      name: p.name,
-      price: String(p.price),
+      name:        p.name,
+      price:       String(p.price),
       description: p.description || '',
-      category: matchedCat.name || p.category || '',
-      category_id: matchedCat.id || p.category_id || '',
-      size: Array.isArray(p.size) ? p.size.join(', ') : (p.size || ''),
+      category_id: matched.id   || p.category_id || '',
+      category:    matched.name || p.category    || '',
+      size:   Array.isArray(p.size)   ? p.size.join(', ')  : (p.size   || ''),
       images: Array.isArray(p.images) ? p.images.join('\n') : (p.images || ''),
-      stock: String(p.stock ?? 0),
+      stock:  String(p.stock ?? 0),
     })
     setEditingId(p.id)
     setModalError('')
     setShowModal(true)
   }
 
+  // ─────────────────────────────────────────
+  // Save (insert / update)
+  // ─────────────────────────────────────────
   const handleSave = async () => {
     if (!form.name.trim() || !form.price) return
     setSaving(true)
     setModalError('')
-    console.log('Submitting Product:', { editingId, form, isSupabaseConfigured })
 
-    // Resolve category name + UUID from form state
-    const resolvedCat = categories.find(c => c.id === form.category_id) || {}
+    // Double-check the selected category against our fresh Supabase list
+    const resolved = dbCats.find(c => c.id === form.category_id) || {}
+    const categoryId   = resolved.id   || form.category_id || null
+    const categoryName = resolved.name || form.category    || 'Other'
 
-    // Guard: only send category_id if it's a real UUID (not 'cat-1', '1', etc.)
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    const safeCategory_id = uuidPattern.test(form.category_id) ? form.category_id : null
+    // Safety net: only send category_id if it is a genuine UUID
+    const safeId = UUID_REGEX.test(String(categoryId)) ? categoryId : null
+
+    console.log('Selected category_id:', safeId, '| name:', categoryName)
 
     const payload = {
-      name: form.name.trim(),
-      price: Number(form.price),
+      name:        form.name.trim(),
+      price:       Number(form.price),
       description: form.description.trim(),
-      category: resolvedCat.name || form.category || 'Other',  // text fallback
-      category_id: safeCategory_id,                            // null if not a real UUID
-      size: form.size.split(',').map(s => s.trim()).filter(Boolean),
+      category:    categoryName,   // text column
+      category_id: safeId,         // UUID column (null if we couldn't resolve a real UUID)
+      size:   form.size.split(',').map(s => s.trim()).filter(Boolean),
       images: form.images.split('\n').map(s => s.trim()).filter(Boolean),
-      stock: Number(form.stock) || 0,
+      stock:  Number(form.stock) || 0,
       is_new: !editingId,
     }
 
+    console.log('Payload to Supabase:', payload)
 
     try {
       if (isSupabaseConfigured) {
         if (editingId) {
           console.log('Updating product id:', editingId)
-          const { error } = await supabase.from('products').update(payload).eq('id', editingId)
-          if (error) throw error
+          const { error: updateErr } = await supabase
+            .from('products')
+            .update(payload)
+            .eq('id', editingId)
+          if (updateErr) throw updateErr
         } else {
           console.log('Inserting new product')
-          const { error } = await supabase.from('products').insert([payload])
-          if (error) throw error
+          const { error: insertErr } = await supabase
+            .from('products')
+            .insert([payload])
+          if (insertErr) throw insertErr
         }
-        await fetchProducts() // Refresh from DB
+        await fetchProducts()
       } else {
-        // Dev mode: update local state only (resets on page refresh)
+        // Dev mode – local only
         if (editingId) {
           setProducts(ps => ps.map(p => p.id === editingId ? { ...p, ...payload } : p))
         } else {
@@ -147,11 +197,14 @@ export default function AdminProducts() {
     }
   }
 
+  // ─────────────────────────────────────────
+  // Delete
+  // ─────────────────────────────────────────
   const handleDelete = async (id) => {
     try {
       if (isSupabaseConfigured) {
-        const { error } = await supabase.from('products').delete().eq('id', id)
-        if (error) throw error
+        const { error: delErr } = await supabase.from('products').delete().eq('id', id)
+        if (delErr) throw delErr
         await fetchProducts()
       } else {
         setProducts(ps => ps.filter(p => p.id !== id))
@@ -163,10 +216,14 @@ export default function AdminProducts() {
     }
   }
 
+  // ─────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <AdminSidebar />
       <main className="ml-56 flex-1 p-8">
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -236,20 +293,28 @@ export default function AdminProducts() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">{p.category || 'Other'}</span>
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">
+                          {p.category || 'Other'}
+                        </span>
                       </td>
                       <td className="px-5 py-3.5 text-sm font-bold text-yellow-600">₹{p.price}</td>
                       <td className="px-5 py-3.5">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock < 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-600'}`}>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                          p.stock === 0 ? 'bg-red-100 text-red-600'
+                          : p.stock < 5 ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-green-100 text-green-600'
+                        }`}>
                           {p.stock === 0 ? 'Out of Stock' : `${p.stock} units`}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => openEdit(p)} id={`edit-product-${p.id}`} className="p-2 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors" aria-label="Edit">
+                          <button onClick={() => openEdit(p)} id={`edit-${p.id}`}
+                            className="p-2 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors" aria-label="Edit">
                             <Pencil size={15} />
                           </button>
-                          <button onClick={() => setDeleteConfirm(p.id)} id={`delete-product-${p.id}`} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors" aria-label="Delete">
+                          <button onClick={() => setDeleteConfirm(p.id)} id={`del-${p.id}`}
+                            className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors" aria-label="Delete">
                             <Trash2 size={15} />
                           </button>
                         </div>
@@ -263,91 +328,144 @@ export default function AdminProducts() {
         </div>
       </main>
 
-      {/* Add/Edit Modal */}
+      {/* ── Add / Edit Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fadeInUp">
+
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-display text-xl font-bold text-gray-800">{editingId ? 'Edit Product' : 'Add New Product'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-xl hover:bg-gray-100 text-gray-500"><X size={18} /></button>
+              <h2 className="font-display text-xl font-bold text-gray-800">
+                {editingId ? 'Edit Product' : 'Add New Product'}
+              </h2>
+              <button onClick={() => setShowModal(false)} className="p-2 rounded-xl hover:bg-gray-100 text-gray-500">
+                <X size={18} />
+              </button>
             </div>
+
             <div className="p-6 space-y-4">
-              {/* Modal Error */}
+
+              {/* Modal error */}
               {modalError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
                   ❌ {modalError}
                 </div>
               )}
+
+              {/* Dev mode warning */}
               {!isSupabaseConfigured && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2.5 rounded-xl text-xs">
-                  ⚡ Dev mode: Products saved locally only (lost on refresh). Configure Supabase for permanent storage.
+                  ⚡ Dev mode: saves locally only.
                 </div>
               )}
-              {[
-                { id: 'prod-name', label: 'Product Name *', key: 'name', type: 'text', placeholder: 'e.g. Golden Bangle Set' },
-                { id: 'prod-price', label: 'Price (₹) *', key: 'price', type: 'number', placeholder: '299' },
-                { id: 'prod-stock', label: 'Stock Quantity', key: 'stock', type: 'number', placeholder: '25' },
-              ].map(field => (
-                <div key={field.key}>
-                  <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
-                  <input id={field.id} type={field.type} placeholder={field.placeholder} value={form[field.key]}
-                    onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))} className="input-gold" />
-                </div>
-              ))}
 
-              {/* Dynamic Category Dropdown */}
+              {/* Name */}
               <div>
-                <label htmlFor="prod-category" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <label htmlFor="prod-name" className="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+                <input id="prod-name" type="text" placeholder="e.g. Golden Bangle Set"
+                  value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="input-gold" />
+              </div>
+
+              {/* Price */}
+              <div>
+                <label htmlFor="prod-price" className="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
+                <input id="prod-price" type="number" placeholder="299"
+                  value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                  className="input-gold" />
+              </div>
+
+              {/* Stock */}
+              <div>
+                <label htmlFor="prod-stock" className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity</label>
+                <input id="prod-stock" type="number" placeholder="25"
+                  value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
+                  className="input-gold" />
+              </div>
+
+              {/* ── Category Dropdown – uses direct Supabase fetch, real UUIDs only ── */}
+              <div>
+                <label htmlFor="prod-category" className="block text-sm font-medium text-gray-700 mb-1">
+                  Category {catsLoading && <span className="text-xs text-gray-400 ml-1">(loading…)</span>}
+                </label>
                 <select
                   id="prod-category"
                   value={form.category_id}
                   onChange={e => {
-                    const selected = categories.find(c => c.id === e.target.value) || {}
+                    const selectedId = e.target.value
+                    const selectedCat = dbCats.find(c => c.id === selectedId) || {}
+                    console.log('Dropdown changed → category_id:', selectedId, '| name:', selectedCat.name)
                     setForm(f => ({
                       ...f,
-                      category_id: selected.id || '',
-                      category: selected.name || '',
+                      category_id: selectedCat.id   || '',
+                      category:    selectedCat.name || '',
                     }))
                   }}
                   className="input-gold"
                 >
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  {dbCats.length === 0 && (
+                    <option value="">— no categories loaded —</option>
+                  )}
+                  {dbCats.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
                   ))}
-                  {categories.length === 0 && <option value="">Other</option>}
                 </select>
+                {/* Debug: show what UUID will be sent */}
+                {form.category_id && (
+                  <p className="text-xs text-gray-400 mt-1 font-mono">id: {form.category_id}</p>
+                )}
               </div>
 
+              {/* Sizes */}
               <div>
                 <label htmlFor="prod-size" className="block text-sm font-medium text-gray-700 mb-1">Sizes (comma separated)</label>
-                <input id="prod-size" type="text" placeholder="2.4, 2.6, 2.8 or Free Size" value={form.size}
-                  onChange={e => setForm(f => ({ ...f, size: e.target.value }))} className="input-gold" />
+                <input id="prod-size" type="text" placeholder="2.4, 2.6, 2.8 or Free Size"
+                  value={form.size} onChange={e => setForm(f => ({ ...f, size: e.target.value }))}
+                  className="input-gold" />
               </div>
+
+              {/* Description */}
               <div>
                 <label htmlFor="prod-description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea id="prod-description" rows={3} placeholder="Product description..." value={form.description}
-                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="input-gold resize-none" />
+                <textarea id="prod-description" rows={3} placeholder="Product description..."
+                  value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  className="input-gold resize-none" />
               </div>
+
+              {/* Images */}
               <div>
                 <label htmlFor="prod-images" className="block text-sm font-medium text-gray-700 mb-1">Image URLs (one per line)</label>
-                <textarea id="prod-images" rows={3} placeholder="https://example.com/image1.jpg" value={form.images}
-                  onChange={e => setForm(f => ({ ...f, images: e.target.value }))} className="input-gold resize-none font-mono text-xs" />
+                <textarea id="prod-images" rows={3} placeholder="https://example.com/image1.jpg"
+                  value={form.images} onChange={e => setForm(f => ({ ...f, images: e.target.value }))}
+                  className="input-gold resize-none font-mono text-xs" />
               </div>
+
+              {/* Buttons */}
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowModal(false)} className="btn-outline-gold flex-1 py-2.5 text-sm">Cancel</button>
-                <button onClick={handleSave} disabled={saving || !form.name.trim() || !form.price} id="save-product-btn"
-                  className="btn-gold flex-1 flex items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-50">
-                  {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={15} />}
+                <button onClick={() => setShowModal(false)} className="btn-outline-gold flex-1 py-2.5 text-sm">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !form.name.trim() || !form.price}
+                  id="save-product-btn"
+                  className="btn-gold flex-1 flex items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-50"
+                >
+                  {saving
+                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : <Save size={15} />}
                   {saving ? 'Saving...' : 'Save Product'}
                 </button>
               </div>
+
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete confirm */}
+      {/* ── Delete confirm ── */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirm(null)} />
@@ -360,7 +478,9 @@ export default function AdminProducts() {
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="btn-outline-gold flex-1 py-2.5 text-sm">Cancel</button>
               <button onClick={() => handleDelete(deleteConfirm)} id="confirm-delete-btn"
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-full text-sm transition-colors">Delete</button>
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-full text-sm transition-colors">
+                Delete
+              </button>
             </div>
           </div>
         </div>
