@@ -139,21 +139,24 @@ export default function AdminProducts() {
     setModalError('')
 
     // Double-check the selected category against our fresh Supabase list
-    const resolved = dbCats.find(c => c.id === form.category_id) || {}
-    const categoryId   = resolved.id   || form.category_id || null
+    const resolved     = dbCats.find(c => String(c.id) === String(form.category_id)) || {}
+    const categoryId   = resolved.id   ?? form.category_id ?? null
     const categoryName = resolved.name || form.category    || 'Other'
 
-    // Safety net: only send category_id if it is a genuine UUID
-    const safeId = UUID_REGEX.test(String(categoryId)) ? categoryId : null
+    // Only include category_id in the payload when it is a genuine UUID.
+    // If the categories table in Supabase uses integer IDs (not UUIDs), category_id
+    // will be completely omitted so Supabase never sees an invalid uuid value.
+    const isRealUUID   = UUID_REGEX.test(String(categoryId ?? ''))
+    const categoryIdField = isRealUUID ? { category_id: categoryId } : {}
 
-    console.log('Selected category_id:', safeId, '| name:', categoryName)
+    console.log('Selected category_id:', categoryId, '| isUUID:', isRealUUID, '| name:', categoryName)
 
     const payload = {
       name:        form.name.trim(),
       price:       Number(form.price),
       description: form.description.trim(),
-      category:    categoryName,   // text column
-      category_id: safeId,         // UUID column (null if we couldn't resolve a real UUID)
+      category:    categoryName,    // TEXT column — always sent
+      ...categoryIdField,           // UUID column — omitted if not a real UUID
       size:   form.size.split(',').map(s => s.trim()).filter(Boolean),
       images: form.images.split('\n').map(s => s.trim()).filter(Boolean),
       stock:  Number(form.stock) || 0,
@@ -161,6 +164,7 @@ export default function AdminProducts() {
     }
 
     console.log('Payload to Supabase:', payload)
+
 
     try {
       if (isSupabaseConfigured) {
