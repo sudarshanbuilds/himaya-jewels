@@ -1,9 +1,11 @@
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Truck, Shield, RefreshCw } from 'lucide-react'
 import HeroBanner from '../components/HeroBanner'
 import CategoryShowcase from '../components/CategoryShowcase'
 import ProductCard from '../components/ProductCard'
-import { FEATURED_PRODUCTS, TRENDING_PRODUCTS } from '../data/products'
+import { SkeletonCard } from '../components/LoadingSpinner'
+import { supabase } from '../lib/supabase'
 import { useCategories } from '../hooks/useCategories'
 
 const FEATURES = [
@@ -12,9 +14,38 @@ const FEATURES = [
   { icon: <RefreshCw size={22} className="text-yellow-600" />, title: 'Easy Returns', desc: '7-day return policy' },
 ]
 
-
 export default function Home() {
   const { categories } = useCategories()
+  const [featured, setFeatured] = useState([])
+  const [trending, setTrending] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      const all = data || []
+      // Featured = newest products (is_new flag or first 4)
+      setFeatured(all.filter(p => p.is_new).slice(0, 4).length >= 4
+        ? all.filter(p => p.is_new).slice(0, 4)
+        : all.slice(0, 4))
+      // Trending = highest priced (gives premium feel)
+      setTrending([...all].sort((a, b) => b.price - a.price).slice(0, 4))
+    } catch (err) {
+      console.error('Home fetch error:', err)
+      setFeatured([])
+      setTrending([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchProducts() }, [fetchProducts])
+
   return (
     <main>
       {/* Hero */}
@@ -23,7 +54,7 @@ export default function Home() {
       {/* Feature badges */}
       <section className="bg-amber-50 border-y border-amber-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {FEATURES.map((f, i) => (
               <div key={i} className="flex items-start gap-3 animate-fadeInUp" style={{ animationDelay: `${i * 0.1}s` }}>
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
@@ -54,16 +85,19 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {FEATURED_PRODUCTS.map((product, i) => (
-            <div key={product.id} className="animate-fadeInUp" style={{ animationDelay: `${i * 0.1}s` }}>
-              <ProductCard product={product} />
-            </div>
-          ))}
+          {loading
+            ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
+            : featured.length === 0
+              ? <p className="col-span-4 text-center text-gray-400 py-8">No products yet — add some from the admin panel.</p>
+              : featured.map((product, i) => (
+                  <div key={product.id} className="animate-fadeInUp" style={{ animationDelay: `${i * 0.1}s` }}>
+                    <ProductCard product={product} />
+                  </div>
+                ))
+          }
         </div>
         <div className="mt-6 text-center sm:hidden">
-          <Link to="/shop" className="btn-outline-gold inline-block text-sm px-6 py-2.5">
-            View All Products
-          </Link>
+          <Link to="/shop" className="btn-outline-gold inline-block text-sm px-6 py-2.5">View All Products</Link>
         </div>
       </section>
 
@@ -76,15 +110,11 @@ export default function Home() {
           </div>
           <div className="relative z-10">
             <span className="text-yellow-300 text-sm font-semibold uppercase tracking-widest">Limited Offer</span>
-            <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mt-2 mb-3">
-              Bridal Collection 2026
-            </h2>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mt-2 mb-3">Bridal Collection 2026</h2>
             <p className="text-amber-200 max-w-md mx-auto mb-6">
               Complete bridal sets starting at just ₹799. Make your special day unforgettable with Himaya Jewels.
             </p>
-            <Link to="/shop?category=Combos" id="promo-shop-combos" className="btn-gold inline-block">
-              Shop Bridal Sets
-            </Link>
+            <Link to="/shop?category=Bridal Sets" id="promo-shop-combos" className="btn-gold inline-block">Shop Bridal Sets</Link>
           </div>
         </div>
       </section>
@@ -101,14 +131,18 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {TRENDING_PRODUCTS.map((product, i) => (
-            <div key={product.id} className="animate-fadeInUp" style={{ animationDelay: `${i * 0.1}s` }}>
-              <ProductCard product={product} />
-            </div>
-          ))}
+          {loading
+            ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
+            : trending.length === 0
+              ? <p className="col-span-4 text-center text-gray-400 py-8">No products yet.</p>
+              : trending.map((product, i) => (
+                  <div key={product.id} className="animate-fadeInUp" style={{ animationDelay: `${i * 0.1}s` }}>
+                    <ProductCard product={product} />
+                  </div>
+                ))
+          }
         </div>
       </section>
-
     </main>
   )
 }

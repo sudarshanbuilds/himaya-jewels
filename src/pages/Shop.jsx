@@ -4,14 +4,15 @@ import { Search, SlidersHorizontal, X, Grid3X3, LayoutList } from 'lucide-react'
 import ProductCard from '../components/ProductCard'
 import FilterPanel, { PRICE_RANGES, SORT_OPTIONS } from '../components/FilterPanel'
 import { SkeletonCard } from '../components/LoadingSpinner'
-import { PRODUCTS as LOCAL_PRODUCTS } from '../data/products'
+
+
 import { useCategories } from '../hooks/useCategories'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 export default function Shop() {
   const { categories } = useCategories()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [allProducts, setAllProducts] = useState(LOCAL_PRODUCTS)
+  const [allProducts, setAllProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [view, setView] = useState('grid')
@@ -24,26 +25,19 @@ export default function Shop() {
     search: searchParams.get('search') || '',
   })
 
-  // Fetch products from Supabase (with local fallback)
+  // Fetch products from Supabase only — no local fallback
   const fetchProducts = useCallback(async () => {
     setLoading(true)
-    if (!isSupabaseConfigured) {
-      setAllProducts(LOCAL_PRODUCTS)
-      setLoading(false)
-      return
-    }
     try {
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false })
-      if (!error && data && data.length > 0) {
-        setAllProducts(data)
-      } else {
-        setAllProducts(LOCAL_PRODUCTS)
-      }
-    } catch {
-      setAllProducts(LOCAL_PRODUCTS)
+      if (error) console.error('Products fetch error:', error)
+      setAllProducts(data || [])   // always use Supabase result
+    } catch (err) {
+      console.error('Network error:', err)
+      setAllProducts([])
     } finally {
       setLoading(false)
     }

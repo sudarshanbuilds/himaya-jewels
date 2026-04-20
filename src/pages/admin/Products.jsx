@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Pencil, Trash2, X, Save, RefreshCw } from 'lucide-react'
 import AdminSidebar from '../../components/AdminSidebar'
-import { PRODUCTS as LOCAL_PRODUCTS } from '../../data/products'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 
 // UUID regex — real Supabase UUIDs match this; fake ids like 'cat-1' or '1' do NOT
@@ -60,16 +59,11 @@ export default function AdminProducts() {
   }
 
   // ─────────────────────────────────────────
-  // Fetch products
+  // Fetch products — Supabase only, no mock fallback
   // ─────────────────────────────────────────
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     setError('')
-    if (!isSupabaseConfigured) {
-      setProducts(LOCAL_PRODUCTS)
-      setLoading(false)
-      return
-    }
     try {
       const { data, error: fetchError } = await supabase
         .from('products')
@@ -77,13 +71,13 @@ export default function AdminProducts() {
         .order('created_at', { ascending: false })
       if (fetchError) {
         setError('Failed to load products: ' + fetchError.message)
-        setProducts(LOCAL_PRODUCTS)
+        setProducts([])
       } else {
-        setProducts(data && data.length > 0 ? data : LOCAL_PRODUCTS)
+        setProducts(data || [])  // empty array if no products — never mock data
       }
     } catch {
-      setError('Network error. Showing local data.')
-      setProducts(LOCAL_PRODUCTS)
+      setError('Network error. Could not reach Supabase.')
+      setProducts([])
     } finally {
       setLoading(false)
     }
