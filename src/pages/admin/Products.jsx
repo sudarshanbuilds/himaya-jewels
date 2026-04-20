@@ -109,18 +109,24 @@ export default function AdminProducts() {
   }
 
   const openEdit = (p) => {
-    // Match product's category_id to a Supabase category, or fall back to name match
+    // Fix edit-mode: if stored category_id is not a UUID, reset it to empty
+    const storedCatId = UUID_REGEX.test(String(p.category_id || '')) ? p.category_id : ''
+
+    // Match against fresh Supabase categories
     const matched =
-      dbCats.find(c => c.id   === p.category_id) ||
-      dbCats.find(c => c.name === p.category)    ||
+      dbCats.find(c => c.id   === storedCatId) ||
+      dbCats.find(c => c.name === p.category)  ||
       dbCats[0] || {}
-    console.log('openEdit – matched category:', matched, '| product category_id:', p.category_id)
+
+    const resolvedId = UUID_REGEX.test(String(matched.id || '')) ? matched.id : ''
+    console.log('openEdit – resolved category_id:', resolvedId, '| name:', matched.name)
+
     setForm({
       name:        p.name,
       price:       String(p.price),
       description: p.description || '',
-      category_id: matched.id   || p.category_id || '',
-      category:    matched.name || p.category    || '',
+      category_id: resolvedId,           // '' if no real UUID found
+      category:    matched.name || p.category || '',
       size:   Array.isArray(p.size)   ? p.size.join(', ')  : (p.size   || ''),
       images: Array.isArray(p.images) ? p.images.join('\n') : (p.images || ''),
       stock:  String(p.stock ?? 0),
@@ -138,25 +144,24 @@ export default function AdminProducts() {
     setSaving(true)
     setModalError('')
 
-    // Double-check the selected category against our fresh Supabase list
-    const resolved     = dbCats.find(c => String(c.id) === String(form.category_id)) || {}
-    const categoryId   = resolved.id   ?? form.category_id ?? null
-    const categoryName = resolved.name || form.category    || 'Other'
+    // Debug: log what category_id is about to be sent
+    console.log('Final category_id:', form.category_id)
 
-    // Only include category_id in the payload when it is a genuine UUID.
-    // If the categories table in Supabase uses integer IDs (not UUIDs), category_id
-    // will be completely omitted so Supabase never sees an invalid uuid value.
-    const isRealUUID   = UUID_REGEX.test(String(categoryId ?? ''))
-    const categoryIdField = isRealUUID ? { category_id: categoryId } : {}
+    // Validate category_id directly from form state
+    const isRealUUID = UUID_REGEX.test(String(form.category_id || ''))
 
-    console.log('Selected category_id:', categoryId, '| isUUID:', isRealUUID, '| name:', categoryName)
+    // Resolve display name
+    const resolvedCat  = dbCats.find(c => c.id === form.category_id) || {}
+    const categoryName = resolvedCat.name || form.category || 'Other'
+
+    console.log('isUUID:', isRealUUID, '| name:', categoryName)
 
     const payload = {
       name:        form.name.trim(),
       price:       Number(form.price),
       description: form.description.trim(),
-      category:    categoryName,    // TEXT column — always sent
-      ...categoryIdField,           // UUID column — omitted if not a real UUID
+      category:    categoryName,                              // TEXT — always sent
+      ...(isRealUUID ? { category_id: form.category_id } : {}), // UUID — omitted if invalid
       size:   form.size.split(',').map(s => s.trim()).filter(Boolean),
       images: form.images.split('\n').map(s => s.trim()).filter(Boolean),
       stock:  Number(form.stock) || 0,
@@ -387,7 +392,7 @@ export default function AdminProducts() {
                   className="input-gold" />
               </div>
 
-              {/* ── Category Dropdown – uses direct Supabase fetch, real UUIDs only ── */}
+              {/* ── Category Dropdown – direct Supabase fetch, UUID validated on change ── */}
               <div>
                 <label htmlFor="prod-category" className="block text-sm font-medium text-gray-700 mb-1">
                   Category {catsLoading && <span className="text-xs text-gray-400 ml-1">(loading…)</span>}
@@ -397,8 +402,16 @@ export default function AdminProducts() {
                   value={form.category_id}
                   onChange={e => {
                     const selectedId = e.target.value
+
+                    // Validate UUID format before accepting
+                    const isUUID = UUID_REGEX.test(selectedId)
+                    if (!isUUID) {
+                      console.warn('Invalid UUID selected — ignoring:', selectedId)
+                      return   // reject numeric or fake ids
+                    }
+
                     const selectedCat = dbCats.find(c => c.id === selectedId) || {}
-                    console.log('Dropdown changed → category_id:', selectedId, '| name:', selectedCat.name)
+                    console.log('Dropdown → category_id:', selectedId, '| name:', selectedCat.name)
                     setForm(f => ({
                       ...f,
                       category_id: selectedCat.id   || '',
@@ -416,10 +429,12 @@ export default function AdminProducts() {
                     </option>
                   ))}
                 </select>
-                {/* Debug: show what UUID will be sent */}
-                {form.category_id && (
-                  <p className="text-xs text-gray-400 mt-1 font-mono">id: {form.category_id}</p>
-                )}
+                {/* Debug: shows id that will be sent to Supabase */}
+                <p className="text-xs mt-1 font-mono">
+                  {form.category_id
+                    ? <span className="text-green-600">✓ id: {form.category_id}</span>
+                    : <span className="text-amber-500">⚠ no category selected</span>}
+                </p>
               </div>
 
               {/* Sizes */}
