@@ -14,14 +14,26 @@ export function UserAuthProvider({ children }) {
     }
 
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setUser(session?.user ?? null)
+      .then(({ data: { session }, error }) => {
+        if (error) {
+          supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+          setUser(null)
+        } else {
+          setUser(session?.user ?? null)
+        }
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => {
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+        setLoading(false)
+      })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_ERROR') {
+        setUser(null)
+      } else {
+        setUser(session?.user ?? null)
+      }
     })
 
     return () => subscription.unsubscribe()
