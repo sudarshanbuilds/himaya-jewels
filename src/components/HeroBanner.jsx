@@ -1,82 +1,62 @@
 import { Link } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 
-export default function HeroBanner() {
+export default function HeroBanner({
+  heading    = 'Where Every\nPiece Tells\na Story',
+  subheading = 'Discover our exquisite collection of bangles, earrings, and combo sets — crafted to make you shine at every occasion.',
+  align      = 'left',
+}) {
+  const textAlign  = align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-center lg:text-left'
+  const flexAlign  = align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-center lg:justify-start'
+  const headingLines = heading.split('\n')
+
   return (
-    <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-gradient-to-br from-stone-900 via-amber-950 to-stone-900">
+    <section className="relative min-h-[82vh] flex items-center overflow-hidden bg-gradient-to-br from-stone-900 via-amber-950 to-stone-900">
       {/* Background decorative circles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-yellow-500/10 blur-3xl" />
         <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-amber-600/10 blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-yellow-400/5 blur-3xl" />
-        {/* Floating jewelry dots */}
         {[...Array(12)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1.5 h-1.5 rounded-full bg-yellow-400/40"
-            style={{
-              top: `${10 + (i * 7.5) % 80}%`,
-              left: `${5 + (i * 8.3) % 90}%`,
-              animationDelay: `${i * 0.3}s`,
-              animation: `float ${3 + (i % 3)}s ease-in-out infinite`,
-            }}
-          />
+          <div key={i} className="absolute w-1.5 h-1.5 rounded-full bg-yellow-400/40"
+            style={{ top:`${10+(i*7.5)%80}%`, left:`${5+(i*8.3)%90}%`,
+              animationDelay:`${i*0.3}s`, animation:`float ${3+(i%3)}s ease-in-out infinite` }} />
         ))}
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-20 grid lg:grid-cols-2 gap-12 items-center">
         {/* Left content */}
-        <div className="text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 text-sm font-medium px-4 py-1.5 rounded-full mb-6 animate-fadeInUp">
+        <div className={textAlign}>
+          <div className={`inline-flex items-center gap-2 bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 text-sm font-medium px-4 py-1.5 rounded-full mb-6 animate-fadeInUp`}>
             <Sparkles size={14} />
             Premium Artificial Jewelry
           </div>
 
-          <h1
-            className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 animate-fadeInUp"
-            style={{ animationDelay: '0.1s' }}
-          >
-            Where Every
-            <span className="block text-gradient-gold">Piece Tells</span>
-            a Story
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 animate-fadeInUp"
+            style={{ animationDelay: '0.1s' }}>
+            {headingLines.map((line, i) => (
+              <span key={i}>
+                {i === 1 ? <span className="text-gradient-gold">{line}</span> : line}
+                {i < headingLines.length - 1 && <br />}
+              </span>
+            ))}
           </h1>
 
-          <p
-            className="text-gray-300 text-lg leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0 animate-fadeInUp"
-            style={{ animationDelay: '0.2s' }}
-          >
-            Discover our exquisite collection of bangles, earrings, and combo sets — crafted to make you shine at every occasion.
+          <p className="text-gray-300 text-lg leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0 animate-fadeInUp"
+            style={{ animationDelay: '0.2s' }}>
+            {subheading}
           </p>
 
-          <div
-            className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start animate-fadeInUp"
-            style={{ animationDelay: '0.3s' }}
-          >
-            <Link to="/shop" id="hero-shop-btn" className="btn-gold text-center">
-              Shop Collection
-            </Link>
-            <Link to="/shop?category=Combos" className="btn-outline-gold text-center" style={{ borderColor: 'rgba(201,162,39,0.6)', color: '#E8C547' }}>
+          <div className={`flex flex-col sm:flex-row gap-3 ${flexAlign} animate-fadeInUp`}
+            style={{ animationDelay: '0.3s' }}>
+            <Link to="/shop" id="hero-shop-btn" className="btn-gold text-center">Shop Collection</Link>
+            <Link to="/shop?category=Bridal Sets" className="btn-outline-gold text-center"
+              style={{ borderColor:'rgba(201,162,39,0.6)', color:'#E8C547' }}>
               View Combos
             </Link>
           </div>
-
-          {/* Stats */}
-          <div
-            className="mt-10 flex items-center gap-8 justify-center lg:justify-start animate-fadeInUp"
-            style={{ animationDelay: '0.4s' }}
-          >
-            {[
-              { value: '500+', label: 'Designs' },
-              { value: '10K+', label: 'Happy Customers' },
-              { value: '4.9★', label: 'Rating' },
-            ].map(stat => (
-              <div key={stat.label} className="text-center">
-                <div className="text-yellow-400 font-bold text-xl font-display">{stat.value}</div>
-                <div className="text-gray-400 text-xs mt-0.5">{stat.label}</div>
-              </div>
-            ))}
-          </div>
         </div>
+
 
         {/* Right — floating jewelry card */}
         <div className="hidden lg:flex items-center justify-center">

@@ -4,7 +4,9 @@ import { ShoppingCart, Heart, ArrowLeft, Star, Package, Truck, RefreshCw, Shield
 import { useCart } from '../context/CartContext'
 import { useFavorites } from '../context/FavoritesContext'
 import ProductCard from '../components/ProductCard'
+import ImageZoom from '../components/ImageZoom'
 import { supabase } from '../lib/supabase'
+
 
 export default function ProductDetail() {
   const { id }     = useParams()
@@ -113,14 +115,13 @@ export default function ProductDetail() {
 
             {/* ── Images ── */}
             <div className="p-6 sm:p-8">
-              <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-4">
-                <img
-                  src={images[selectedImg] || 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&q=80'}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                  onError={e => e.target.src = 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&q=80'}
-                />
-              </div>
+              {/* Main image with full zoom capability */}
+              <ImageZoom
+                src={images[selectedImg] || 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=800&q=80'}
+                alt={product.name}
+                className="aspect-square bg-gray-100 mb-4"
+              />
+              {/* Thumbnails */}
               {images.length > 1 && (
                 <div className="flex gap-3 overflow-x-auto pb-1">
                   {images.map((img, i) => (
@@ -133,6 +134,7 @@ export default function ProductDetail() {
                 </div>
               )}
             </div>
+
 
             {/* ── Info ── */}
             <div className="p-6 sm:p-8 lg:border-l border-gray-100 flex flex-col">

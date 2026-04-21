@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Pencil, Trash2, X, Save, RefreshCw } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Save, RefreshCw, Eye, EyeOff, Star } from 'lucide-react'
 import AdminSidebar from '../../components/AdminSidebar'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 
@@ -219,6 +219,24 @@ export default function AdminProducts() {
     }
   }
 
+  // Toggle visibility (is_visible)
+  const toggleVisibility = async (p) => {
+    const next = !p.is_visible
+    setProducts(ps => ps.map(x => x.id === p.id ? { ...x, is_visible: next } : x))
+    if (isSupabaseConfigured) {
+      await supabase.from('products').update({ is_visible: next }).eq('id', p.id)
+    }
+  }
+
+  // Toggle featured (is_featured)
+  const toggleFeatured = async (p) => {
+    const next = !p.is_featured
+    setProducts(ps => ps.map(x => x.id === p.id ? { ...x, is_featured: next } : x))
+    if (isSupabaseConfigured) {
+      await supabase.from('products').update({ is_featured: next }).eq('id', p.id)
+    }
+  }
+
   // ─────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────
@@ -275,20 +293,19 @@ export default function AdminProducts() {
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stock</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Visible</th>
+                    <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Featured</th>
                     <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {products.map(p => (
-                    <tr key={p.id} className="hover:bg-amber-50/30 transition-colors">
+                    <tr key={p.id} className={`hover:bg-amber-50/30 transition-colors ${p.is_visible === false ? 'opacity-50' : ''}`}>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={Array.isArray(p.images) ? p.images[0] : p.images}
-                            alt={p.name}
+                          <img src={Array.isArray(p.images) ? p.images[0] : p.images} alt={p.name}
                             className="w-12 h-12 rounded-xl object-cover bg-gray-100 flex-shrink-0"
-                            onError={e => e.target.src = 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=100&q=80'}
-                          />
+                            onError={e => e.target.src = 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=100&q=80'} />
                           <div>
                             <p className="text-sm font-semibold text-gray-800 line-clamp-1">{p.name}</p>
                             <p className="text-xs text-gray-400 line-clamp-1">{p.description?.slice(0, 50)}</p>
@@ -296,19 +313,30 @@ export default function AdminProducts() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">
-                          {p.category || 'Other'}
-                        </span>
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">{p.category || 'Other'}</span>
                       </td>
                       <td className="px-5 py-3.5 text-sm font-bold text-yellow-600">₹{p.price}</td>
                       <td className="px-5 py-3.5">
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                          p.stock === 0 ? 'bg-red-100 text-red-600'
-                          : p.stock < 5 ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-green-100 text-green-600'
-                        }`}>
+                          p.stock === 0 ? 'bg-red-100 text-red-600' : p.stock < 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-600'}`}>
                           {p.stock === 0 ? 'Out of Stock' : `${p.stock} units`}
                         </span>
+                      </td>
+                      {/* Visibility toggle */}
+                      <td className="px-5 py-3.5">
+                        <button onClick={() => toggleVisibility(p)}
+                          title={p.is_visible === false ? 'Hidden — click to show' : 'Visible — click to hide'}
+                          className={`p-1.5 rounded-lg transition-colors ${p.is_visible === false ? 'text-gray-300 hover:text-green-500' : 'text-green-500 hover:text-gray-400'}`}>
+                          {p.is_visible === false ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </td>
+                      {/* Featured toggle */}
+                      <td className="px-5 py-3.5">
+                        <button onClick={() => toggleFeatured(p)}
+                          title={p.is_featured ? 'Featured — click to unfeature' : 'Click to feature on homepage'}
+                          className={`p-1.5 rounded-lg transition-colors ${p.is_featured ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}>
+                          <Star size={16} className={p.is_featured ? 'fill-yellow-400' : ''} />
+                        </button>
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">

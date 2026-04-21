@@ -27,6 +27,10 @@ import Dashboard from './pages/admin/Dashboard'
 import AdminProducts from './pages/admin/Products'
 import AdminOrders from './pages/admin/Orders'
 import AdminCategories from './pages/admin/Categories'
+import AdminBanners from './pages/admin/Banners'
+import AdminComboOffers from './pages/admin/ComboOffers'
+import AdminSpecialOffers from './pages/admin/SpecialOffers'
+import AdminSiteSettings from './pages/admin/SiteSettings'
 
 // Policy Pages
 import { AboutUs, Contact, Shipping, Returns, Privacy, Terms } from './pages/policies/PolicyPages'
@@ -74,11 +78,15 @@ export default function App() {
                 <Route path="/terms" element={<CustomerLayout><Terms /></CustomerLayout>} />
 
                 {/* Admin Routes */}
-                <Route path="/admin/login" element={<AdminLogin />} />
-                <Route path="/admin/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/admin/products" element={<ProtectedRoute><AdminProducts /></ProtectedRoute>} />
-                <Route path="/admin/categories" element={<ProtectedRoute><AdminCategories /></ProtectedRoute>} />
-                <Route path="/admin/orders" element={<ProtectedRoute><AdminOrders /></ProtectedRoute>} />
+                <Route path="/admin/login"          element={<AdminLogin />} />
+                <Route path="/admin/dashboard"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/admin/products"       element={<ProtectedRoute><AdminProducts /></ProtectedRoute>} />
+                <Route path="/admin/categories"     element={<ProtectedRoute><AdminCategories /></ProtectedRoute>} />
+                <Route path="/admin/orders"         element={<ProtectedRoute><AdminOrders /></ProtectedRoute>} />
+                <Route path="/admin/banners"        element={<ProtectedRoute><AdminBanners /></ProtectedRoute>} />
+                <Route path="/admin/combo-offers"   element={<ProtectedRoute><AdminComboOffers /></ProtectedRoute>} />
+                <Route path="/admin/special-offers" element={<ProtectedRoute><AdminSpecialOffers /></ProtectedRoute>} />
+                <Route path="/admin/site-settings"  element={<ProtectedRoute><AdminSiteSettings /></ProtectedRoute>} />
 
                 {/* 404 fallback */}
                 <Route path="*" element={
