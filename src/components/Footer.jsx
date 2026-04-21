@@ -11,16 +11,19 @@ const InstagramIcon = () => (
 export default function Footer() {
   const { settings } = useSiteSettings()
 
-  // WhatsApp from settings (with fallback to original hardcoded values)
+  // New granular keys with backward-compat fallback to old whatsapp_enabled
+  const footerWaEnabled = settings.footer_whatsapp_enabled !== undefined
+    ? settings.footer_whatsapp_enabled !== 'false'
+    : settings.whatsapp_enabled !== 'false'
   const waNumber  = settings.whatsapp_number  || '919558285403'
   const waMessage = settings.whatsapp_message || "Hi! I'm interested in your jewelry."
-  const waEnabled = settings.whatsapp_enabled !== 'false'
 
   // Footer colors from settings
-  const footerBg   = settings.color_footer_bg   || '#111827'
-  const footerText = settings.color_footer_text  || '#9ca3af'
+  const footerBg   = settings.color_footer_bg  || '#111827'
+  const footerText = settings.color_footer_text || '#9ca3af'
 
   const waUrl = `https://wa.me/${waNumber.replace(/\D/g, '')}?text=${encodeURIComponent(waMessage)}`
+
 
   return (
     <footer style={{ backgroundColor: footerBg, color: footerText }}>
