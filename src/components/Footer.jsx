@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Gem, Mail, Phone, MapPin, Heart } from 'lucide-react'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -8,10 +9,21 @@ const InstagramIcon = () => (
 )
 
 export default function Footer() {
-  const whatsappNumber = '919558285403'
+  const { settings } = useSiteSettings()
+
+  // WhatsApp from settings (with fallback to original hardcoded values)
+  const waNumber  = settings.whatsapp_number  || '919558285403'
+  const waMessage = settings.whatsapp_message || "Hi! I'm interested in your jewelry."
+  const waEnabled = settings.whatsapp_enabled !== 'false'
+
+  // Footer colors from settings
+  const footerBg   = settings.color_footer_bg   || '#111827'
+  const footerText = settings.color_footer_text  || '#9ca3af'
+
+  const waUrl = `https://wa.me/${waNumber.replace(/\D/g, '')}?text=${encodeURIComponent(waMessage)}`
 
   return (
-    <footer className="bg-gray-900 text-gray-300">
+    <footer style={{ backgroundColor: footerBg, color: footerText }}>
       {/* Golden top border */}
       <div className="h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
 
@@ -26,28 +38,23 @@ export default function Footer() {
               </div>
               <span className="font-display text-xl font-bold text-yellow-400">Himaya Jewels</span>
             </Link>
-            <p className="text-sm text-gray-400 leading-relaxed mb-4">
+            <p className="text-sm leading-relaxed mb-4 opacity-70">
               Premium artificial jewelry crafted with love. Bangles, earrings, and stunning combo sets for every occasion.
             </p>
             <div className="flex items-center gap-3">
-              <a
-                href="https://www.instagram.com/himayajewells?igsh=ZXFicWR1MzFvZXBq"
-                target="_blank"
-                rel="noreferrer"
-                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-yellow-500 flex items-center justify-center transition-colors group"
-                aria-label="Instagram"
-              >
-                <span className="text-gray-400 group-hover:text-white"><InstagramIcon /></span>
+              <a href="https://www.instagram.com/himayajewells?igsh=ZXFicWR1MzFvZXBq"
+                target="_blank" rel="noreferrer"
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-yellow-500 flex items-center justify-center transition-colors group"
+                aria-label="Instagram">
+                <span className="opacity-60 group-hover:opacity-100"><InstagramIcon /></span>
               </a>
-              <a
-                href={`https://wa.me/919558285403`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-green-500 flex items-center justify-center transition-colors group"
-                aria-label="WhatsApp"
-              >
-                <Phone size={16} className="text-gray-400 group-hover:text-white" />
-              </a>
+              {waEnabled && (
+                <a href={waUrl} target="_blank" rel="noreferrer"
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-green-500 flex items-center justify-center transition-colors group"
+                  aria-label="WhatsApp">
+                  <Phone size={16} className="opacity-60 group-hover:opacity-100 group-hover:text-white" />
+                </a>
+              )}
             </div>
           </div>
 
@@ -59,19 +66,16 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2.5">
               {[
-                { to: '/', label: 'Home' },
-                { to: '/shop', label: 'Shop All' },
+                { to: '/',                      label: 'Home' },
+                { to: '/shop',                  label: 'Shop All' },
                 { to: '/shop?category=Bangles', label: 'Bangles' },
-                { to: '/shop?category=Earrings', label: 'Earrings' },
-                { to: '/shop?category=Combos', label: 'Combo Sets' },
-                { to: '/favorites', label: 'Favorites' },
-                { to: '/cart', label: 'Cart' },
+                { to: '/shop?category=Earrings',label: 'Earrings' },
+                { to: '/shop?category=Combos',  label: 'Combo Sets' },
+                { to: '/favorites',             label: 'Favorites' },
+                { to: '/cart',                  label: 'Cart' },
               ].map(link => (
                 <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-sm text-gray-400 hover:text-yellow-400 transition-colors hover:translate-x-1 inline-block duration-200"
-                  >
+                  <Link to={link.to} className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors hover:translate-x-1 inline-block duration-200">
                     {link.label}
                   </Link>
                 </li>
@@ -87,18 +91,15 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2.5">
               {[
-                { to: '/about', label: 'About Us' },
-                { to: '/contact', label: 'Contact Us' },
+                { to: '/about',    label: 'About Us' },
+                { to: '/contact',  label: 'Contact Us' },
                 { to: '/shipping', label: 'Shipping Policy' },
-                { to: '/returns', label: 'Return Policy' },
-                { to: '/privacy', label: 'Privacy Policy' },
-                { to: '/terms', label: 'Terms & Conditions' },
+                { to: '/returns',  label: 'Return Policy' },
+                { to: '/privacy',  label: 'Privacy Policy' },
+                { to: '/terms',    label: 'Terms & Conditions' },
               ].map(link => (
                 <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-sm text-gray-400 hover:text-yellow-400 transition-colors hover:translate-x-1 inline-block duration-200"
-                  >
+                  <Link to={link.to} className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors hover:translate-x-1 inline-block duration-200">
                     {link.label}
                   </Link>
                 </li>
@@ -115,39 +116,37 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2.5">
                 <Phone size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                <a href="tel:+919558285403" className="text-sm text-gray-400 hover:text-yellow-400 transition-colors">
-                  +91 95582 85403
+                <a href={`tel:+${waNumber}`} className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors">
+                  +{waNumber.startsWith('91') ? waNumber.replace('91', '91 ') : waNumber}
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
                 <Mail size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                <a href="mailto:himadreevarma4@gmail.com" className="text-sm text-gray-400 hover:text-yellow-400 transition-colors">
+                <a href="mailto:himadreevarma4@gmail.com" className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors">
                   himadreevarma4@gmail.com
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
                 <MapPin size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-gray-400">India</span>
+                <span className="text-sm opacity-70">India</span>
               </li>
             </ul>
-            <a
-              href="https://wa.me/919558285403?text=Hi! I'm interested in your jewelry."
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 mt-4 bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-full transition-all hover:shadow-lg"
-            >
-              <Phone size={14} />
-              WhatsApp Us
-            </a>
+            {waEnabled && (
+              <a href={waUrl} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-2 mt-4 bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-full transition-all hover:shadow-lg">
+                <Phone size={14} />
+                WhatsApp Us
+              </a>
+            )}
           </div>
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-10 pt-6 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-gray-500">
+        <div className="mt-10 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs opacity-40">
             © {new Date().getFullYear()} Himaya Jewels. All rights reserved.
           </p>
-          <p className="text-xs text-gray-500 flex items-center gap-1">
+          <p className="text-xs opacity-40 flex items-center gap-1">
             Made with <Heart size={12} className="text-red-400 fill-red-400" /> for jewelry lovers
           </p>
         </div>

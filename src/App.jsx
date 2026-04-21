@@ -7,6 +7,8 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import ProtectedRoute from './components/ProtectedRoute'
+import WhatsAppButton from './components/WhatsAppButton'
+
 
 // Customer Pages
 import Home from './pages/Home'
@@ -42,9 +44,11 @@ function CustomerLayout({ children }) {
       <Navbar />
       {children}
       <Footer />
+      <WhatsAppButton />
     </>
   )
 }
+
 
 export default function App() {
   return (

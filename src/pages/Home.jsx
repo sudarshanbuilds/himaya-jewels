@@ -9,38 +9,42 @@ import { supabase } from '../lib/supabase'
 import { useCategories } from '../hooks/useCategories'
 
 const FEATURES = [
-  { icon: <Truck size={22} className="text-yellow-600" />,   title: 'Free Shipping',   desc: 'On orders above ₹499' },
-  { icon: <Shield size={22} className="text-yellow-600" />,  title: 'Quality Assured', desc: 'Every piece checked' },
-  { icon: <RefreshCw size={22} className="text-yellow-600" />, title: 'Easy Returns',  desc: '7-day return policy' },
+  { icon: <Truck size={22} className="text-yellow-600" />,    title: 'Free Shipping',   desc: 'On orders above ₹499' },
+  { icon: <Shield size={22} className="text-yellow-600" />,   title: 'Quality Assured', desc: 'Every piece checked' },
+  { icon: <RefreshCw size={22} className="text-yellow-600" />, title: 'Easy Returns',   desc: '7-day return policy' },
 ]
 
 export default function Home() {
   const { categories } = useCategories()
-  const [featured,  setFeatured]  = useState([])
-  const [trending,  setTrending]  = useState([])
-  const [combos,    setCombos]    = useState([])
-  const [offers,    setOffers]    = useState([])
-  const [siteSettings, setSiteSettings] = useState({})
-  const [loading,   setLoading]   = useState(true)
+  const [featured,      setFeatured]      = useState([])
+  const [trending,      setTrending]      = useState([])
+  const [combos,        setCombos]        = useState([])
+  const [offers,        setOffers]        = useState([])
+  const [banners,       setBanners]       = useState([])
+  const [siteSettings,  setSiteSettings]  = useState({})
+  const [loading,       setLoading]       = useState(true)
+  const [bannerIdx,     setBannerIdx]     = useState(0)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [pRes, cRes, oRes, sRes] = await Promise.all([
+      const [pRes, cRes, oRes, sRes, bRes] = await Promise.all([
         supabase.from('products').select('*').eq('is_visible', true).order('created_at', { ascending: false }),
         supabase.from('combo_offers').select('*').eq('is_active', true).eq('show_on_home', true),
         supabase.from('special_offers').select('*').eq('is_active', true),
         supabase.from('site_settings').select('key, value'),
+        supabase.from('banners').select('*').eq('is_active', true).order('sort_order'),
       ])
 
       const all = pRes.data || []
-      // Featured: is_featured flag first, else newest 4
+      // Featured: prefer is_featured flag, else fall back to newest 4
       const featuredItems = all.filter(p => p.is_featured)
-      setFeatured(featuredItems.length >= 4 ? featuredItems.slice(0, 4) : all.slice(0, 4))
+      setFeatured(featuredItems.length >= 1 ? featuredItems.slice(0, 4) : all.slice(0, 4))
       setTrending([...all].sort((a, b) => b.price - a.price).slice(0, 4))
       setCombos(cRes.data || [])
+      setBanners((bRes.data || []).filter(b => b.image_url || b.heading)) // only banners with content
 
-      // Special offers: only show if active and within date range
+      // Active + in-date special offers
       const now = new Date()
       const activeOffers = (oRes.data || []).filter(o => {
         const start = o.start_date ? new Date(o.start_date) : null
@@ -51,9 +55,7 @@ export default function Home() {
       })
       setOffers(activeOffers)
 
-      if (sRes.data) {
-        setSiteSettings(Object.fromEntries(sRes.data.map(r => [r.key, r.value])))
-      }
+      if (sRes.data) setSiteSettings(Object.fromEntries(sRes.data.map(r => [r.key, r.value])))
     } catch (err) {
       console.error('Home fetch error:', err)
     } finally { setLoading(false) }
@@ -61,14 +63,63 @@ export default function Home() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
+  // Auto-advance banners every 5 s
+  useEffect(() => {
+    if (banners.length < 2) return
+    const t = setInterval(() => setBannerIdx(i => (i + 1) % banners.length), 5000)
+    return () => clearInterval(t)
+  }, [banners.length])
+
   const heading    = siteSettings.homepage_heading    || 'Where Every\nPiece Tells\na Story'
   const subheading = siteSettings.homepage_subheading || 'Discover our exquisite collection crafted to make you shine at every occasion.'
   const align      = siteSettings.homepage_align      || 'left'
 
   return (
     <main>
-      {/* Hero - dynamic from site settings */}
+      {/* Hero — dynamic heading from site settings */}
       <HeroBanner heading={heading} subheading={subheading} align={align} />
+
+      {/* ── Admin-managed Banners (FIX 4) ─────────────────────── */}
+      {banners.length > 0 && (
+        <section className="relative overflow-hidden" style={{ minHeight: '120px' }}>
+          {banners.map((banner, idx) => (
+            <div key={banner.id}
+              className={`transition-opacity duration-700 ${idx === bannerIdx ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}
+              style={{ backgroundColor: banner.bg_color || '#7c2d12' }}>
+              {banner.image_url && (
+                <div className="absolute inset-0">
+                  <img src={banner.image_url} alt={banner.heading || 'Banner'}
+                    className="w-full h-full object-cover opacity-40" loading="lazy" />
+                </div>
+              )}
+              <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between">
+                <div>
+                  {banner.heading && (
+                    <h2 className="font-display text-2xl sm:text-3xl font-bold" style={{ color: banner.text_color || '#ffffff' }}>
+                      {banner.heading}
+                    </h2>
+                  )}
+                  {banner.subtext && (
+                    <p className="mt-1 text-sm" style={{ color: banner.text_color ? `${banner.text_color}cc` : '#ffffffcc' }}>
+                      {banner.subtext}
+                    </p>
+                  )}
+                </div>
+                <Link to="/shop" className="btn-gold flex-shrink-0 ml-4 text-sm">Shop Now</Link>
+              </div>
+            </div>
+          ))}
+          {/* Dots */}
+          {banners.length > 1 && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+              {banners.map((_, i) => (
+                <button key={i} onClick={() => setBannerIdx(i)}
+                  className={`w-2 h-2 rounded-full transition-all ${i === bannerIdx ? 'bg-white scale-125' : 'bg-white/40'}`} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Feature badges */}
       <section className="bg-amber-50 border-y border-amber-100">
@@ -92,7 +143,11 @@ export default function Home() {
         <section className="mx-4 sm:mx-6 lg:mx-auto max-w-7xl mt-8">
           {offers.slice(0, 1).map(offer => (
             <div key={offer.id} className="relative rounded-2xl overflow-hidden"
-              style={{ background: offer.banner_url ? `url(${offer.banner_url}) center/cover` : 'linear-gradient(135deg, #dc2626, #b91c1c)' }}>
+              style={{ background: offer.banner_url ? undefined : 'linear-gradient(135deg, #dc2626, #b91c1c)' }}>
+              {offer.banner_url && (
+                <img src={offer.banner_url} alt={offer.title}
+                  className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+              )}
               <div className="absolute inset-0 bg-black/40" />
               <div className="relative z-10 flex items-center justify-between px-6 py-5">
                 <div>
@@ -110,7 +165,10 @@ export default function Home() {
                       {offer.discount}%<br /><span className="text-sm font-normal">OFF</span>
                     </div>
                   )}
-                  <Link to="/shop" className="block mt-2 bg-white text-gray-900 text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-yellow-50 transition-colors">Shop Now</Link>
+                  {/* FIX 6: Link to shop with offer_id so dates are validated */}
+                  <Link to={`/shop?offer_id=${offer.id}`} className="block mt-2 bg-white text-gray-900 text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-yellow-50 transition-colors">
+                    Shop Offer
+                  </Link>
                 </div>
               </div>
             </div>
@@ -163,7 +221,8 @@ export default function Home() {
               <div key={combo.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fadeInUp group"
                 style={{ animationDelay: `${i * 0.1}s` }}>
                 {combo.image_url ? (
-                  <img src={combo.image_url} alt={combo.title} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <img src={combo.image_url} alt={combo.title}
+                    className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                 ) : (
                   <div className="w-full h-40 bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center">
                     <Tag size={32} className="text-yellow-500" />
@@ -171,13 +230,16 @@ export default function Home() {
                 )}
                 <div className="p-4">
                   <p className="font-display font-bold text-gray-800 mb-1">{combo.title}</p>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-3">
                     <span className="text-xl font-bold text-yellow-600">₹{combo.combo_price}</span>
                     {combo.discount > 0 && (
                       <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">{combo.discount}% OFF</span>
                     )}
                   </div>
-                  <Link to="/shop" className="mt-3 block btn-gold text-center text-sm py-2">Shop Now</Link>
+                  {/* FIX 5: Navigate to shop with combo_id to show combo products */}
+                  <Link to={`/shop?combo_id=${combo.id}`} className="block btn-gold text-center text-sm py-2">
+                    View Products
+                  </Link>
                 </div>
               </div>
             ))}
