@@ -13,10 +13,17 @@ export const DEFAULTS = {
   footer_bg_color:       '#111827',
   footer_text_color:     '#9ca3af',
   whatsapp_number:       '919558285403',
+  whatsapp_order_template: '',       // fetched from DB; empty = use built-in default in notifications.js
+  business_email:        '',
+  emailjs_service_id:    '',
+  emailjs_template_id:   '',
+  emailjs_customer_template_id: '',
+  emailjs_public_key:    '',
   homepage_heading:      'Where Every Piece Tells a Story',
   homepage_subheading:   'Discover our exquisite collection crafted to make you shine at every occasion.',
   homepage_align:        'left',
 }
+
 
 // ── Validate hex color — returns the value or a fallback ──
 function safeColor(value, fallback = '#000000') {

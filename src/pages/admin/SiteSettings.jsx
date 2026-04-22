@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Save, RefreshCw, AlignLeft, AlignCenter, AlignRight, Palette, MessageCircle, RotateCcw, AlertTriangle, X, Phone } from 'lucide-react'
+import { Save, RefreshCw, AlignLeft, AlignCenter, AlignRight, Palette, MessageCircle, RotateCcw, AlertTriangle, X, Phone, Mail } from 'lucide-react'
 import AdminSidebar from '../../components/AdminSidebar'
 import { supabase } from '../../lib/supabase'
 import { invalidateSettingsCache, DEFAULTS } from '../../hooks/useSiteSettings'
@@ -25,10 +25,25 @@ function safeHex(val, fallback) {
   return /^#[0-9a-fA-F]{3,6}$/.test(val.trim()) ? val.trim() : fallback
 }
 
+const DEFAULT_WA_TEMPLATE = `🛍️ *New Order — Himaya Jewels*
+
+🔖 Order ID: {order_id}
+👤 Customer: {customer_name}
+📱 Phone: {phone}
+🏠 Address: {address}
+
+📦 Products:
+{product_list}
+
+💰 Total: ₹{total}
+
+Please confirm order with customer.`
+
 const TABS = [
   { id: 'hero',     label: 'Hero Text',  icon: AlignLeft },
   { id: 'colors',   label: 'Colors',     icon: Palette },
   { id: 'whatsapp', label: 'WhatsApp',   icon: MessageCircle },
+  { id: 'email',    label: 'Email',      icon: Mail },
 ]
 
 // ── Confirmation modal ─────────────────────────────────────
@@ -154,9 +169,10 @@ export default function AdminSiteSettings() {
     finally { setResetting(false) }
   }
 
-  const heroKeys    = ['homepage_heading', 'homepage_subheading', 'homepage_align']
-  const colorKeys   = COLOR_FIELDS.map(f => f.key)
-  const waKeys      = ['whatsapp_number']
+  const heroKeys  = ['homepage_heading', 'homepage_subheading', 'homepage_align']
+  const colorKeys = COLOR_FIELDS.map(f => f.key)
+  const waKeys    = ['whatsapp_number', 'whatsapp_order_template']
+  const emailKeys = ['business_email', 'emailjs_service_id', 'emailjs_template_id', 'emailjs_customer_template_id', 'emailjs_public_key']
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -312,45 +328,150 @@ export default function AdminSiteSettings() {
 
         {/* ── TAB: WhatsApp ── */}
         {activeTab === 'whatsapp' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-              <h2 className="font-semibold text-gray-800">WhatsApp Settings</h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
-                <div className="flex gap-2 items-center">
-                  <span className="text-gray-500 text-sm font-mono bg-gray-100 px-3 py-2.5 rounded-xl">+</span>
-                  <input className="input-gold flex-1 font-mono"
-                    value={settings.whatsapp_number || ''}
-                    placeholder="919558285403"
-                    onChange={e => set('whatsapp_number', e.target.value.replace(/\D/g, ''))} />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                <h2 className="font-semibold text-gray-800">WhatsApp Settings</h2>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-gray-500 text-sm font-mono bg-gray-100 px-3 py-2.5 rounded-xl">+</span>
+                    <input className="input-gold flex-1 font-mono"
+                      value={settings.whatsapp_number || ''}
+                      placeholder="919558285403"
+                      onChange={e => set('whatsapp_number', e.target.value.replace(/\D/g, ''))} />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Country code + number, digits only. Example: 919558285403</p>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Country code + number, digits only. Example: 919558285403</p>
+                <button onClick={() => handleSave(waKeys)} disabled={saving}
+                  className="btn-gold w-full flex items-center justify-center gap-2">
+                  <Save size={15} /> {saving ? 'Saving…' : 'Save WhatsApp Settings'}
+                </button>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-                ℹ️ The WhatsApp link always appears in the footer. Message text is preset to "Hi! I'm interested in your jewelry."
+              {/* Preview */}
+              <div className="bg-gray-900 rounded-2xl p-6 flex flex-col justify-center min-h-[200px]">
+                <p className="text-yellow-400 text-xs uppercase tracking-widest mb-4 font-semibold">✦ Footer Link Preview</p>
+                <div className="space-y-3">
+                  <div className="bg-gray-800 rounded-xl p-3">
+                    <p className="text-gray-400 text-xs mb-1">wa.me URL</p>
+                    <p className="text-green-400 text-sm font-mono break-all">
+                      https://wa.me/{(settings.whatsapp_number || '919558285403').replace(/\D/g, '')}
+                    </p>
+                  </div>
+                  <a href={`https://wa.me/${(settings.whatsapp_number || '919558285403').replace(/\D/g, '')}`}
+                    target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-medium">
+                    <Phone size={14} /> Test WhatsApp Link
+                  </a>
+                </div>
               </div>
-              <button onClick={() => handleSave(waKeys)} disabled={saving}
+            </div>
+
+            {/* Order notification message template */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="font-semibold text-gray-800 mb-1">Order Notification Message Template</h2>
+              <p className="text-xs text-gray-400 mb-4">
+                This message is sent to your WhatsApp when a customer places an order.
+                Use these placeholders: <code className="bg-gray-100 px-1 rounded">{'{order_id}'}</code> <code className="bg-gray-100 px-1 rounded">{'{customer_name}'}</code> <code className="bg-gray-100 px-1 rounded">{'{phone}'}</code> <code className="bg-gray-100 px-1 rounded">{'{address}'}</code> <code className="bg-gray-100 px-1 rounded">{'{product_list}'}</code> <code className="bg-gray-100 px-1 rounded">{'{total}'}</code>
+              </p>
+              <textarea rows={10}
+                className="input-gold resize-none font-mono text-sm w-full"
+                value={settings.whatsapp_order_template || DEFAULT_WA_TEMPLATE}
+                onChange={e => set('whatsapp_order_template', e.target.value)}
+                placeholder={DEFAULT_WA_TEMPLATE} />
+              <div className="flex items-center justify-between mt-3">
+                <button onClick={() => set('whatsapp_order_template', DEFAULT_WA_TEMPLATE)}
+                  className="text-xs text-gray-400 hover:text-yellow-600 transition-colors underline">
+                  Reset to default template
+                </button>
+                <button onClick={() => handleSave(waKeys)} disabled={saving}
+                  className="btn-gold flex items-center gap-2 px-4 py-2 text-sm">
+                  <Save size={14} /> {saving ? 'Saving…' : 'Save Template'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB: Email ── */}
+        {activeTab === 'email' && (
+          <div className="space-y-6">
+            {/* Business Email */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <h2 className="font-semibold text-gray-800">Business Email</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email Address</label>
+                <div className="relative">
+                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input className="input-gold pl-9"
+                    type="email"
+                    placeholder="support@himayajewels.com"
+                    value={settings.business_email || ''}
+                    onChange={e => set('business_email', e.target.value)} />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Order notification emails will be sent to this address.</p>
+              </div>
+            </div>
+
+            {/* EmailJS Config */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold text-gray-800">EmailJS Configuration</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Create a free account at{' '}
+                  <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" className="text-yellow-600 underline">emailjs.com</a>.
+                  Add a Gmail/SMTP service, create two email templates, then paste the IDs below.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Service ID</label>
+                  <input className="input-gold font-mono text-sm"
+                    placeholder="service_xxxxxxx"
+                    value={settings.emailjs_service_id || ''}
+                    onChange={e => set('emailjs_service_id', e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Admin Template ID</label>
+                  <input className="input-gold font-mono text-sm"
+                    placeholder="template_xxxxxxx"
+                    value={settings.emailjs_template_id || ''}
+                    onChange={e => set('emailjs_template_id', e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Customer Template ID</label>
+                  <input className="input-gold font-mono text-sm"
+                    placeholder="template_xxxxxxx"
+                    value={settings.emailjs_customer_template_id || ''}
+                    onChange={e => set('emailjs_customer_template_id', e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Public Key</label>
+                  <input className="input-gold font-mono text-sm"
+                    placeholder="xxxxxxxxxxxxxxxxxxxxxx"
+                    value={settings.emailjs_public_key || ''}
+                    onChange={e => set('emailjs_public_key', e.target.value)} />
+                </div>
+              </div>
+
+              <button onClick={() => handleSave(emailKeys)} disabled={saving}
                 className="btn-gold w-full flex items-center justify-center gap-2">
-                <Save size={15} /> {saving ? 'Saving…' : 'Save WhatsApp Number'}
+                <Save size={15} /> {saving ? 'Saving…' : 'Save Email Settings'}
               </button>
             </div>
 
-            {/* Preview */}
-            <div className="bg-gray-900 rounded-2xl p-6 flex flex-col justify-center min-h-[240px]">
-              <p className="text-yellow-400 text-xs uppercase tracking-widest mb-4 font-semibold">✦ Preview</p>
-              <div className="space-y-3">
-                <div className="bg-gray-800 rounded-xl p-3">
-                  <p className="text-gray-400 text-xs mb-1">Footer WhatsApp Link</p>
-                  <p className="text-green-400 text-sm font-mono break-all">
-                    https://wa.me/{(settings.whatsapp_number || '919558285403').replace(/\D/g, '')}
-                  </p>
-                </div>
-                <a href={`https://wa.me/${(settings.whatsapp_number || '919558285403').replace(/\D/g, '')}`}
-                  target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-medium">
-                  <Phone size={14} /> WhatsApp Us
-                </a>
-              </div>
+            {/* Setup guide */}
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+              <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2"><Mail size={16} /> EmailJS Setup Guide</h3>
+              <ol className="text-sm text-blue-700 space-y-1.5 list-decimal list-inside">
+                <li>Go to <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" className="underline font-medium">emailjs.com</a> and create a free account</li>
+                <li>Add an Email Service (Gmail, Outlook, or SMTP)</li>
+                <li>Create an <strong>Admin Order Template</strong> — variables: <code className="bg-blue-100 px-1 rounded text-xs">{'{{order_id}}'}</code> <code className="bg-blue-100 px-1 rounded text-xs">{'{{customer_name}}'}</code> <code className="bg-blue-100 px-1 rounded text-xs">{'{{product_list}}'}</code> <code className="bg-blue-100 px-1 rounded text-xs">{'{{total}}'}</code> <code className="bg-blue-100 px-1 rounded text-xs">{'{{address}}'}</code></li>
+                <li>Create a <strong>Customer Confirmation Template</strong> — variables: <code className="bg-blue-100 px-1 rounded text-xs">{'{{customer_name}}'}</code> <code className="bg-blue-100 px-1 rounded text-xs">{'{{order_id}}'}</code> <code className="bg-blue-100 px-1 rounded text-xs">{'{{product_list}}'}</code> <code className="bg-blue-100 px-1 rounded text-xs">{'{{total}}'}</code></li>
+                <li>Copy Service ID, both Template IDs, and Public Key → paste above</li>
+              </ol>
+              <p className="text-xs text-blue-600 mt-3">Free tier: 200 emails/month. No credit card required.</p>
             </div>
           </div>
         )}

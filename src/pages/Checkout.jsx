@@ -1,20 +1,24 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CheckCircle, ArrowLeft, Truck, User, Phone, MapPin, ShoppingBag, AlertCircle } from 'lucide-react'
+import { CheckCircle, ArrowLeft, Truck, User, Phone, MapPin, ShoppingBag, AlertCircle, Mail } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { useSiteSettings } from '../hooks/useSiteSettings'
+import { sendOrderNotifications } from '../utils/notifications'
 
 export default function Checkout() {
   const { items, totalPrice, clearCart } = useCart()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ name: '', phone: '', address: '' })
+  const { settings } = useSiteSettings()
+
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '' })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [orderId, setOrderId] = useState(null)
   const [submitError, setSubmitError] = useState('')
 
-  const shipping = totalPrice >= 499 ? 0 : 49
+  const shipping   = totalPrice >= 499 ? 0 : 49
   const grandTotal = totalPrice + shipping
 
   if (items.length === 0 && !success) {
@@ -32,6 +36,9 @@ export default function Checkout() {
     if (!form.name.trim()) e.name = 'Name is required'
     if (!form.phone.trim()) e.phone = 'Phone number is required'
     else if (!/^[6-9]\d{9}$/.test(form.phone.trim())) e.phone = 'Enter a valid 10-digit mobile number'
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      e.email = 'Enter a valid email address'
+    }
     if (!form.address.trim()) e.address = 'Address is required'
     else if (form.address.trim().length < 10) e.address = 'Please enter a complete address'
     return e
@@ -50,25 +57,25 @@ export default function Checkout() {
 
     // Build JSONB products array (full cart snapshot)
     const productsSnapshot = items.map(item => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
+      id:           item.id,
+      name:         item.name,
+      price:        item.price,
+      quantity:     item.quantity,
       selectedSize: item.selectedSize || '',
-      image: item.images?.[0] || '',
-      subtotal: item.price * item.quantity,
+      image:        Array.isArray(item.images) ? item.images[0] : item.images || '',
+      subtotal:     item.price * item.quantity,
     }))
 
     try {
       if (isSupabaseConfigured) {
-        // Insert single order with all products as JSONB
         const { error } = await supabase.from('orders').insert({
           customer_name: form.name.trim(),
-          phone: form.phone.trim(),
-          address: form.address.trim(),
-          products: productsSnapshot,
-          total_price: grandTotal,
-          order_status: 'pending',
+          phone:         form.phone.trim(),
+          email:         form.email.trim(),
+          address:       form.address.trim(),
+          products:      productsSnapshot,
+          total_price:   grandTotal,
+          order_status:  'pending',
         })
 
         if (error) {
@@ -78,10 +85,23 @@ export default function Checkout() {
           return
         }
       }
-      // Dev mode or Supabase not configured → just show success
+
+      // ── Order saved. Now show success FIRST, then fire notifications ──
       setOrderId(orderRef)
       clearCart()
       setSuccess(true)
+
+      // Fire notifications asynchronously — NEVER block the success screen
+      sendOrderNotifications(settings, {
+        orderId:       orderRef,
+        customerName:  form.name.trim(),
+        phone:         form.phone.trim(),
+        email:         form.email.trim(),
+        address:       form.address.trim(),
+        products:      productsSnapshot,
+        total:         grandTotal,
+      })
+
     } catch (err) {
       console.error('Order error:', err)
       setSubmitError('Something went wrong. Please try again or contact us on WhatsApp.')
@@ -153,14 +173,9 @@ export default function Checkout() {
                   <label htmlFor="checkout-name" className="block text-sm font-medium text-gray-700 mb-1.5">Full Name *</label>
                   <div className="relative">
                     <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      id="checkout-name"
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={form.name}
-                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                      className={`input-gold pl-9 ${errors.name ? 'border-red-400' : ''}`}
-                    />
+                    <input id="checkout-name" type="text" placeholder="Enter your full name"
+                      value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      className={`input-gold pl-9 ${errors.name ? 'border-red-400' : ''}`} />
                   </div>
                   {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                 </div>
@@ -170,17 +185,26 @@ export default function Checkout() {
                   <label htmlFor="checkout-phone" className="block text-sm font-medium text-gray-700 mb-1.5">WhatsApp / Mobile Number *</label>
                   <div className="relative">
                     <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      id="checkout-phone"
-                      type="tel"
-                      placeholder="10-digit mobile number"
-                      value={form.phone}
-                      maxLength={10}
+                    <input id="checkout-phone" type="tel" placeholder="10-digit mobile number"
+                      value={form.phone} maxLength={10}
                       onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, '') }))}
-                      className={`input-gold pl-9 ${errors.phone ? 'border-red-400' : ''}`}
-                    />
+                      className={`input-gold pl-9 ${errors.phone ? 'border-red-400' : ''}`} />
                   </div>
                   {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                </div>
+
+                {/* Email (optional) */}
+                <div>
+                  <label htmlFor="checkout-email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Email Address <span className="text-gray-400 font-normal">(optional — for order confirmation)</span>
+                  </label>
+                  <div className="relative">
+                    <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input id="checkout-email" type="email" placeholder="you@example.com"
+                      value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                      className={`input-gold pl-9 ${errors.email ? 'border-red-400' : ''}`} />
+                  </div>
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                 </div>
 
                 {/* Address */}
@@ -188,25 +212,16 @@ export default function Checkout() {
                   <label htmlFor="checkout-address" className="block text-sm font-medium text-gray-700 mb-1.5">Full Delivery Address *</label>
                   <div className="relative">
                     <MapPin size={15} className="absolute left-3 top-3.5 text-gray-400" />
-                    <textarea
-                      id="checkout-address"
-                      placeholder="House No, Street, Area, City, State, PIN Code"
-                      value={form.address}
-                      onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                      rows={3}
-                      className={`input-gold pl-9 resize-none ${errors.address ? 'border-red-400' : ''}`}
-                    />
+                    <textarea id="checkout-address" placeholder="House No, Street, Area, City, State, PIN Code"
+                      value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                      rows={3} className={`input-gold pl-9 resize-none ${errors.address ? 'border-red-400' : ''}`} />
                   </div>
                   {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
                 </div>
 
                 {/* Submit */}
-                <button
-                  type="submit"
-                  id="place-order-btn"
-                  disabled={loading}
-                  className="btn-gold w-full py-4 text-base flex items-center justify-center gap-2"
-                >
+                <button type="submit" id="place-order-btn" disabled={loading}
+                  className="btn-gold w-full py-4 text-base flex items-center justify-center gap-2">
                   {loading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -238,11 +253,8 @@ export default function Checkout() {
               <div className="p-5 space-y-3.5">
                 {items.map(item => (
                   <div key={`${item.id}-${item.selectedSize}`} className="flex items-start gap-3">
-                    <img
-                      src={item.images?.[0] || 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=100&q=80'}
-                      alt={item.name}
-                      className="w-12 h-12 rounded-xl object-cover flex-shrink-0 bg-gray-50"
-                    />
+                    <img src={Array.isArray(item.images) ? item.images[0] : item.images || 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=100&q=80'}
+                      alt={item.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 bg-gray-50" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 line-clamp-1">{item.name}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -257,8 +269,7 @@ export default function Checkout() {
 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-gray-500">
-                    <span>Subtotal</span>
-                    <span>₹{totalPrice.toLocaleString()}</span>
+                    <span>Subtotal</span><span>₹{totalPrice.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-gray-500">
                     <span>Shipping</span>
