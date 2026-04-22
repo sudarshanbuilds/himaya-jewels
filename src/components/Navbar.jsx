@@ -4,16 +4,22 @@ import { ShoppingCart, Heart, Search, Menu, X, Gem, UserCircle } from 'lucide-re
 import { useCart } from '../context/CartContext'
 import { useFavorites } from '../context/FavoritesContext'
 import { useUserAuth } from '../context/UserAuthContext'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 export default function Navbar() {
   const { totalItems } = useCart()
   const { favorites } = useFavorites()
   const { isLoggedIn, displayName } = useUserAuth()
+  const { settings } = useSiteSettings()
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
+
+  // Safe color reads with inline fallbacks
+  const headerBg   = settings.header_bg_color   || '#ffffff'
+  const headerText = settings.header_text_color  || '#374151'
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10)
@@ -40,7 +46,11 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'glass-nav shadow-md' : 'bg-white/95 backdrop-blur-sm'}`}>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'shadow-md' : ''}`}
+        style={{ backgroundColor: headerBg, color: headerText }}
+      >
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
 

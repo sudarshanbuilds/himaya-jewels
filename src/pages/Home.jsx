@@ -42,7 +42,12 @@ export default function Home() {
       setFeatured(featuredItems.length >= 1 ? featuredItems.slice(0, 4) : all.slice(0, 4))
       setTrending([...all].sort((a, b) => b.price - a.price).slice(0, 4))
       setCombos(cRes.data || [])
-      setBanners((bRes.data || []).filter(b => b.image_url || b.heading)) // only banners with content
+      setBanners(
+        (bRes.data || []).filter(b =>
+          b.is_active &&                          // must be active
+          (b.image_url?.trim() || b.heading?.trim()) // must have image OR heading text
+        )
+      )
 
       // Active + in-date special offers
       const now = new Date()

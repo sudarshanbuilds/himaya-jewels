@@ -10,15 +10,11 @@ const WA_SVG = () => (
 export default function WhatsAppButton() {
   const { settings } = useSiteSettings()
 
-  // New granular key, falls back to legacy whatsapp_enabled for backward compat
-  const floatingEnabled = settings.floating_whatsapp_enabled !== undefined
-    ? settings.floating_whatsapp_enabled !== 'false'
-    : settings.whatsapp_enabled !== 'false'
+  const enabled  = settings.whatsapp_enabled !== 'false'
   const number   = settings.whatsapp_number || '919558285403'
   const message  = settings.whatsapp_message || "Hello! I'm interested in your jewelry."
 
-  if (!floatingEnabled) return null
-
+  if (!enabled) return null
 
   const url = `https://wa.me/${number.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
 

@@ -26,31 +26,17 @@ export function AuthProvider({ children }) {
 
     // ── REAL MODE: Supabase configured ──
     supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
-        if (error) {
-          // Stale / expired token — clear it from storage silently
-          supabase.auth.signOut({ scope: 'local' }).catch(() => {})
-          setUser(null)
-        } else {
-          setUser(session?.user ?? null)
-        }
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
         setLoading(false)
       })
       .catch(() => {
-        // Network or parse error — clear any potentially invalid session
-        supabase.auth.signOut({ scope: 'local' }).catch(() => {})
         setUser(null)
         setLoading(false)
       })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-        setUser(session?.user ?? null)
-      } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_ERROR') {
-        setUser(null)
-      } else {
-        setUser(session?.user ?? null)
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
     })
 
     return () => subscription.unsubscribe()

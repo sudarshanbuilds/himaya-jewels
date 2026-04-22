@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Gem, Mail, Phone, MapPin, Heart } from 'lucide-react'
-import { useSiteSettings } from '../hooks/useSiteSettings'
+import { useSiteSettings, DEFAULTS } from '../hooks/useSiteSettings'
 
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -11,19 +11,14 @@ const InstagramIcon = () => (
 export default function Footer() {
   const { settings } = useSiteSettings()
 
-  // New granular keys with backward-compat fallback to old whatsapp_enabled
-  const footerWaEnabled = settings.footer_whatsapp_enabled !== undefined
-    ? settings.footer_whatsapp_enabled !== 'false'
-    : settings.whatsapp_enabled !== 'false'
-  const waNumber  = settings.whatsapp_number  || '919558285403'
-  const waMessage = settings.whatsapp_message || "Hi! I'm interested in your jewelry."
+  // Colors — fall back to DEFAULTS if missing or invalid
+  const footerBg   = settings.footer_bg_color  || DEFAULTS.footer_bg_color
+  const footerText = settings.footer_text_color || DEFAULTS.footer_text_color
 
-  // Footer colors from settings
-  const footerBg   = settings.color_footer_bg  || '#111827'
-  const footerText = settings.color_footer_text || '#9ca3af'
-
-  const waUrl = `https://wa.me/${waNumber.replace(/\D/g, '')}?text=${encodeURIComponent(waMessage)}`
-
+  // WhatsApp — always show in footer
+  const waNumber  = settings.whatsapp_number || DEFAULTS.whatsapp_number
+  const waMessage = "Hi! I'm interested in your jewelry."
+  const waUrl     = `https://wa.me/${waNumber.replace(/\D/g, '')}?text=${encodeURIComponent(waMessage)}`
 
   return (
     <footer style={{ backgroundColor: footerBg, color: footerText }}>
@@ -47,17 +42,15 @@ export default function Footer() {
             <div className="flex items-center gap-3">
               <a href="https://www.instagram.com/himayajewells?igsh=ZXFicWR1MzFvZXBq"
                 target="_blank" rel="noreferrer"
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-yellow-500 flex items-center justify-center transition-colors group"
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-yellow-500 flex items-center justify-center transition-colors"
                 aria-label="Instagram">
-                <span className="opacity-60 group-hover:opacity-100"><InstagramIcon /></span>
+                <span className="opacity-60 hover:opacity-100"><InstagramIcon /></span>
               </a>
-              {waEnabled && (
-                <a href={waUrl} target="_blank" rel="noreferrer"
-                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-green-500 flex items-center justify-center transition-colors group"
-                  aria-label="WhatsApp">
-                  <Phone size={16} className="opacity-60 group-hover:opacity-100 group-hover:text-white" />
-                </a>
-              )}
+              <a href={waUrl} target="_blank" rel="noreferrer"
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-green-500 flex items-center justify-center transition-colors"
+                aria-label="WhatsApp">
+                <Phone size={16} className="opacity-60 hover:opacity-100" />
+              </a>
             </div>
           </div>
 
@@ -69,16 +62,17 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2.5">
               {[
-                { to: '/',                      label: 'Home' },
-                { to: '/shop',                  label: 'Shop All' },
-                { to: '/shop?category=Bangles', label: 'Bangles' },
-                { to: '/shop?category=Earrings',label: 'Earrings' },
-                { to: '/shop?category=Combos',  label: 'Combo Sets' },
-                { to: '/favorites',             label: 'Favorites' },
-                { to: '/cart',                  label: 'Cart' },
+                { to: '/',                       label: 'Home' },
+                { to: '/shop',                   label: 'Shop All' },
+                { to: '/shop?category=Bangles',  label: 'Bangles' },
+                { to: '/shop?category=Earrings', label: 'Earrings' },
+                { to: '/shop?category=Combos',   label: 'Combo Sets' },
+                { to: '/favorites',              label: 'Favorites' },
+                { to: '/cart',                   label: 'Cart' },
               ].map(link => (
                 <li key={link.to}>
-                  <Link to={link.to} className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors hover:translate-x-1 inline-block duration-200">
+                  <Link to={link.to}
+                    className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-all hover:translate-x-1 inline-block duration-200">
                     {link.label}
                   </Link>
                 </li>
@@ -102,7 +96,8 @@ export default function Footer() {
                 { to: '/terms',    label: 'Terms & Conditions' },
               ].map(link => (
                 <li key={link.to}>
-                  <Link to={link.to} className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors hover:translate-x-1 inline-block duration-200">
+                  <Link to={link.to}
+                    className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-all hover:translate-x-1 inline-block duration-200">
                     {link.label}
                   </Link>
                 </li>
@@ -119,13 +114,15 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2.5">
                 <Phone size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                <a href={`tel:+${waNumber}`} className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors">
-                  +{waNumber.startsWith('91') ? waNumber.replace('91', '91 ') : waNumber}
+                <a href={`tel:+${waNumber}`}
+                  className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors">
+                  +{waNumber}
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
                 <Mail size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                <a href="mailto:himadreevarma4@gmail.com" className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors">
+                <a href="mailto:himadreevarma4@gmail.com"
+                  className="text-sm opacity-70 hover:text-yellow-400 hover:opacity-100 transition-colors">
                   himadreevarma4@gmail.com
                 </a>
               </li>
@@ -134,13 +131,12 @@ export default function Footer() {
                 <span className="text-sm opacity-70">India</span>
               </li>
             </ul>
-            {waEnabled && (
-              <a href={waUrl} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 mt-4 bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-full transition-all hover:shadow-lg">
-                <Phone size={14} />
-                WhatsApp Us
-              </a>
-            )}
+            {/* WhatsApp CTA — always visible, uses dynamic number */}
+            <a href={waUrl} target="_blank" rel="noreferrer" id="footer-whatsapp-link"
+              className="inline-flex items-center gap-2 mt-4 bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-full transition-all hover:shadow-lg">
+              <Phone size={14} />
+              WhatsApp Us
+            </a>
           </div>
         </div>
 
@@ -150,7 +146,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Himaya Jewels. All rights reserved.
           </p>
           <p className="text-xs opacity-40 flex items-center gap-1">
-            Made with <Heart size={12} className="text-red-400 fill-red-400" /> for jewelry lovers
+            Made with <Heart size={12} className="text-red-400 fill-red-400 mx-0.5" /> for jewelry lovers
           </p>
         </div>
       </div>
